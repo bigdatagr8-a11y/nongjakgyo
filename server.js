@@ -24,7 +24,7 @@ app.get("/api/health", (req, res) => {
 app.get("/api/realtime", async (req, res) => {
   try {
     const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
-    const url = `${API_URL}/1/1000?API_KEY=${API_KEY}&SALEDATE=${date}&WHSALCD=1100`;
+    const url = `${API_URL}/1/1000?serviceKey=${API_KEY}&SALEDATE=${date}&WHSALCD=1100`;
     console.log("[요청]", url);
     const r = await fetch(url, { timeout: 15000 });
     const text = await r.text();
@@ -38,7 +38,7 @@ app.get("/api/realtime", async (req, res) => {
 app.get("/api/both", async (req, res) => {
   try {
     const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
-    const url = `${API_URL}/1/1000?API_KEY=${API_KEY}&SALEDATE=${date}&WHSALCD=1100`;
+    const url = `${API_URL}/1/1000?serviceKey=${API_KEY}&SALEDATE=${date}&WHSALCD=1100`;
     const r = await fetch(url, { timeout: 15000 });
     const text = await r.text();
     res.json({ ok: true, date, raw: text.slice(0, 2000) });
