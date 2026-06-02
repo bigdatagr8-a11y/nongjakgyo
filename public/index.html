@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>농작교 — 전국 중앙공영도매시장 직거래 플랫폼</title>
+  <meta name="description" content="전국 9개 중앙공영도매시장 경락가 실시간 조회 · 중도매인 직거래 · 수수료 없는 공영 중계 플랫폼"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: #f0fdf4; }
+    #root { min-height: 100vh; }
+    #loading {
+      position: fixed; inset: 0; background: #0d2b1a;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 9999;
+      transition: opacity 0.5s;
+    }
+    #loading.hide { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: #52b788; border-radius: 50%;
+      animation: spin 0.9s linear infinite; margin-bottom: 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <!-- 로딩 화면 -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="color:#52b788;font-size:13px;font-weight:700;letter-spacing:3px;">AGRO CONNECT</div>
+    <div style="color:rgba(255,255,255,0.6);font-size:12px;margin-top:8px;">농작교 불러오는 중...</div>
+  </div>
+
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react" src="./app.js"></script>
+  <script>
+    // 앱 로드 후 로딩 화면 제거
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        var el = document.getElementById('loading');
+        if(el) { el.classList.add('hide'); setTimeout(function(){ el.remove(); }, 500); }
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
