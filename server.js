@@ -6,7 +6,7 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const API_KEY  = "b83cfe0351d50b47ac263390b267da3c484f8d9258bcafdea622b0b20a217b5f";
-const AGRO_BASE = "https://at.agromarket.kr/openApi";
+const API_BASE = "http://211.237.50.150:7080/openapi/service/Grid_20240625000000000654_1";
 
 app.use(cors());
 app.use(express.json());
@@ -14,71 +14,43 @@ app.use(express.json());
 function getKST(offsetDays = 0) {
   const kst = new Date(Date.now() + (9 + offsetDays * 24) * 3600000);
   return kst.getUTCFullYear()
-    + "-" + String(kst.getUTCMonth() + 1).padStart(2, "0")
-    + "-" + String(kst.getUTCDate()).padStart(2, "0");
-}
-
-async function callAgro(endpoint, params = {}) {
-  const qs = new URLSearchParams({
-    apiKey: API_KEY,
-    pageNo: 1,
-    pageSize: 1000,
-    ...params,
-  });
-  const url = `${AGRO_BASE}/${endpoint}?${qs}`;
-  console.log("[AGRO]", url);
-  const res = await fetch(url, {
-    headers: { Accept: "application/json", "User-Agent": "AgroConnect/1.0" },
-    timeout: 12000,
-  });
-  if (!res.ok) throw new Error(`agromarket.kr ${res.status}`);
-  const ct = res.headers.get("content-type") || "";
-  if (!ct.includes("json")) {
-    const txt = await res.text();
-    throw new Error("JSON 아님: " + txt.slice(0, 120));
-  }
-  return res.json();
+    + String(kst.getUTCMonth() + 1).padStart(2, "0")
+    + String(kst.getUTCDate()).padStart(2, "0");
 }
 
 app.get("/api/health", (req, res) => {
-  res.json({ ok: true, message: "농작교 서버 정상 가동 중", time: new Date().toISOString(), today: getKST() });
+  res.json({ ok: true, message: "농작교 서버 정상 가동 중", today: getKST() });
 });
 
 app.get("/api/realtime", async (req, res) => {
   try {
-    const date = (req.query.date || getKST()).replace(/-/g, "");
-    const data = await callAgro("realtimeInfo.do", { saleDate: date });
+    const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
+    const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&TYPE=json&SALEDATE=${date}`;
+    console.log("[API]", url);
+    const r = await fetch(url, { timeout: 15000 });
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } 
+    catch(e) { return res.status(502).json({ ok:false, error:"JSON 파싱 실패", raw: text.slice(0,200) }); }
     res.json({ ok: true, date, data });
-  } catch (e) {
-    res.status(502).json({ ok: false, error: e.message });
-  }
-});
-
-app.get("/api/settlement", async (req, res) => {
-  try {
-    const date = (req.query.date || getKST()).replace(/-/g, "");
-    const data = await callAgro("sangjungInfo.do", { saleDate: date });
-    res.json({ ok: true, date, data });
-  } catch (e) {
+  } catch(e) {
     res.status(502).json({ ok: false, error: e.message });
   }
 });
 
 app.get("/api/both", async (req, res) => {
-  const date = (req.query.date || getKST()).replace(/-/g, "");
-  const [rt, st] = await Promise.allSettled([
-    callAgro("realtimeInfo.do", { saleDate: date }),
-    callAgro("sangjungInfo.do", { saleDate: date }),
-  ]);
-  res.json({
-    ok: true, date,
-    realtime:   rt.status === "fulfilled" ? rt.value : null,
-    settlement: st.status === "fulfilled" ? st.value : null,
-    errors: {
-      realtime:   rt.status === "rejected" ? rt.reason.message : null,
-      settlement: st.status === "rejected" ? st.reason.message : null,
-    },
-  });
+  try {
+    const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
+    const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&TYPE=json&SALEDATE=${date}`;
+    const r = await fetch(url, { timeout: 15000 });
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch(e) { return res.status(502).json({ ok:false, error:"JSON 파싱 실패", raw: text.slice(0,200) }); }
+    res.json({ ok: true, date, realtime: data, settlement: null });
+  } catch(e) {
+    res.status(502).json({ ok: false, error: e.message });
+  }
 });
 
 app.listen(PORT, "0.0.0.0", () => {
