@@ -39,8 +39,18 @@ function parseSheetRows(csvText, marketsMap) {
 
     var market = MARKET_NAME_MAP[mktName] || MARKETS[0];
     var fullName = variety && variety !== itemName ? itemName+"("+variety+")" : itemName;
+    // 카테고리 매핑
+    var CAT_MAP = {
+      "사과":"사과류","배":"배류","감귤":"감귤류","한라봉":"감귤류","천혜향":"감귤류","레드향":"감귤류",
+      "딸기":"딸기류","포도":"포도류","복숭아":"복숭아류","수박":"수박류","참외":"참외류",
+      "토마토":"채소류","방울토마토":"채소류","오이":"채소류","호박":"채소류","파프리카":"채소류",
+      "메론":"과채류","블루베리":"과일류","바나나":"수입과일","오렌지":"수입과일",
+      "파인애플":"수입과일","코코넛":"수입과일","아보카도":"수입과일","망고":"수입과일",
+    };
+    var catKey = Object.keys(CAT_MAP).find(function(k){return itemName.includes(k);});
+    var cat = catKey ? CAT_MAP[catKey] : itemName;
     var item = {
-      cat: itemName, name: fullName, unit: unit, emoji: getEmoji(itemName),
+      cat: cat, name: fullName, unit: unit, emoji: getEmoji(itemName),
       base: price, grades: ["특","상","보통"], qtyDesc: unit+" 단위"
     };
     var seed = i * 777 + price;
@@ -564,10 +574,11 @@ function buildRecords(dateStr, offset) {
   return list.sort(function(a,b){ return a.price-b.price; });
 }
 
-var REC_TODAY=buildRecords(TODAY,1), REC_YEST=buildRecords(YESTERDAY,2);
-var ALL_REC={}; ALL_REC[TODAY]=REC_TODAY; ALL_REC[YESTERDAY]=REC_YEST;
+// 가상 데이터 제거 — Sheets 실제 데이터만 사용
+var ALL_REC={}; ALL_REC[TODAY]=[]; ALL_REC[YESTERDAY]=[];
 var REGIONS=["전체"].concat(Array.from(new Set(MARKETS.map(function(m){return m.region;}))));
 var CATEGORIES=["전체"].concat(Array.from(new Set(ITEMS.map(function(i){return i.cat;}))));
+// 실제 데이터 로드 후 카테고리 업데이트는 App 컴포넌트에서 처리
 var DEST_REGIONS=["서울","경기","인천","강원","충북","충남","전북","전남","광주","대전","경북","대구","경남","부산","울산"];
 
 var G={dark:"#0d2b1a",mid:"#1b4332",main:"#2d6a4f",light:"#40916c",pale:"#d1fae5",bg:"#f0fdf4",border:"#bbf7d0"};
@@ -2488,15 +2499,17 @@ function App() {
 
   // Google Sheets CORS 차단 시 가상 데이터로 fallback
   // 단, 데이터가 있으면 실제 데이터로 표시
-  var base = usingRealData ? sheetData : (ALL_REC[selDate] || []);
+  // 실제 데이터만 사용 (가상 데이터 완전 제거)
+  var base = usingRealData ? sheetData : [];
   var isRealData = usingRealData;
   var filtered=base.filter(function(r){
     if(filterCat!=="전체"&&r.item.cat!==filterCat)return false;
-    if(filterItem&&r.item.name!==filterItem)return false;
+    // 품목 필터: 실제 품목명 포함 여부로 매칭
+    if(filterItem&&!r.item.name.includes(filterItem.replace(/\(.*\)/,""))&&r.item.name!==filterItem)return false;
     if(filterRegion!=="전체"&&r.market.region!==filterRegion)return false;
     if(filterGrade!=="전체"&&r.grade!==filterGrade)return false;
     if(filterAvail&&!r.available)return false;
-    if(keyword&&!r.item.name.includes(keyword)&&!r.market.name.includes(keyword))return false;
+    if(keyword&&!r.item.name.includes(keyword)&&!r.market.name.includes(keyword)&&!r.item.cat.includes(keyword))return false;
     return true;
   }).sort(function(a,b){
     if(sortBy==="price"&&destRegion){
@@ -2508,7 +2521,16 @@ function App() {
     return b.qty-a.qty;
   });
 
-  var catItems=ITEMS.filter(function(i){return filterCat==="전체"||i.cat===filterCat;});
+  // 실제 데이터에서 카테고리 목록 동적 생성
+  var realCats = usingRealData
+    ? ["전체"].concat(Array.from(new Set(sheetData.map(function(r){return r.item.cat;}))))
+    : CATEGORIES;
+  var catItems = usingRealData
+    ? Array.from(new Set(sheetData.map(function(r){return r.item.name;}))).map(function(n){
+        var found = sheetData.find(function(r){return r.item.name===n;});
+        return found ? found.item : null;
+      }).filter(Boolean)
+    : ITEMS.filter(function(i){return filterCat==="전체"||i.cat===filterCat;});
   var stats={total:base.length, markets:new Set(base.map(function(r){return r.market.id;})).size, avg:base.length?Math.round(base.reduce(function(s,r){return s+r.price;},0)/base.length):0, avail:base.filter(function(r){return r.available;}).length};
 
   function openEscrow(r){
@@ -2607,7 +2629,13 @@ function App() {
             </div>
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,color:"#888",fontWeight:700,marginBottom:6}}>빠른 품목 선택</div>
-              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{ITEMS.map(function(i){return <button key={i.name} onClick={function(){setFilterItem(i.name);setFilterCat(i.cat);}} style={{background:filterItem===i.name?G.mid:"#f0fdf4",color:filterItem===i.name?"#fff":G.mid,border:"1px solid "+(filterItem===i.name?G.mid:G.border),borderRadius:20,padding:"4px 11px",fontSize:11,cursor:"pointer",fontWeight:filterItem===i.name?700:400}}>{i.emoji+" "+i.name}</button>;})}</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{(usingRealData
+                ? Array.from(new Set(base.map(function(r){return r.item.name;}))).sort().map(function(name){
+                    var r=base.find(function(r){return r.item.name===name;});
+                    return {name:name, emoji:r?r.item.emoji:"🌿", cat:r?r.item.cat:""};
+                  })
+                : ITEMS
+              ).map(function(i){return <button key={i.name} onClick={function(){setFilterItem(i.name);setFilterCat(i.cat);}} style={{background:filterItem===i.name?G.mid:"#f0fdf4",color:filterItem===i.name?"#fff":G.mid,border:"1px solid "+(filterItem===i.name?G.mid:G.border),borderRadius:20,padding:"4px 11px",fontSize:11,cursor:"pointer",fontWeight:filterItem===i.name?700:400}}>{i.emoji+" "+i.name}</button>;})}</div>
             </div>
             <button onClick={function(){setSearched(true);}} style={{width:"100%",background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:13,padding:"13px 0",fontSize:14,fontWeight:900,cursor:"pointer",boxShadow:"0 6px 20px rgba(27,67,50,0.3)"}}>🔍 전국 경락가 검색</button>
           </div>
