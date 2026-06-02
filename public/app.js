@@ -17,7 +17,26 @@ var EMOJI_MAP = {
   "배":"🍐","사과":"🍎","감귤":"🍊","포도":"🍇","메론":"🍈","바나나":"🍌",
   "오렌지":"🍊","파인애플":"🍍","코코넛":"🥥","망고":"🥭","아보카도":"🥑",
   "키위":"🥝","레몬":"🍋","체리":"🍒","자두":"🍑","무화과":"🌿",
+  "호박":"🥬","오이":"🥒","고추":"🌶️","파프리카":"🫑","가지":"🍆",
+  "양파":"🧅","마늘":"🧄","파":"🌿","배추":"🥬","무":"🌿","당근":"🥕",
 };
+
+// agromarket 기준 분류 매핑
+var CATEGORY_MAP = {
+  "사과":"사과류","배":"배류","감귤":"감귤류","한라봉":"감귤류","천혜향":"감귤류","레드향":"감귤류","청견":"감귤류",
+  "딸기":"딸기류","포도":"포도류","복숭아":"핵과류","자두":"핵과류","체리":"핵과류",
+  "수박":"과채류","참외":"과채류","메론":"과채류","토마토":"과채류","방울토마토":"과채류","파프리카":"과채류","오이":"과채류","호박":"과채류","가지":"과채류",
+  "블루베리":"장과류","딸기":"장과류",
+  "배추":"엽채류","양배추":"엽채류","상추":"엽채류","시금치":"엽채류","깻잎":"엽채류","파":"엽채류","부추":"엽채류",
+  "무":"근채류","당근":"근채류","양파":"근채류","마늘":"근채류","생강":"근채류",
+  "고추":"조미채소류","마늘":"조미채소류",
+  "바나나":"수입과실류","오렌지":"수입과실류","파인애플":"수입과실류","코코넛":"수입과실류","망고":"수입과실류","아보카도":"수입과실류","키위":"수입과실류","레몬":"수입과실류",
+};
+
+function getCategory(itemName) {
+  var key = Object.keys(CATEGORY_MAP).find(function(k){ return itemName===k || itemName.startsWith(k); });
+  return key ? CATEGORY_MAP[key] : "기타";
+}
 function getEmoji(name) {
   var k = Object.keys(EMOJI_MAP).find(function(k){return name.includes(k);});
   return k ? EMOJI_MAP[k] : "🌿";
@@ -89,6 +108,7 @@ function parseCSV(csvText) {
       price: price,
       corp: corpName,
       emoji: getEmoji(itemName),
+      category: getCategory(itemName),
     });
   }
   return records;
@@ -249,6 +269,8 @@ function App() {
   var f3 = useState(""); var keyword = f3[0]; var setKeyword = f3[1];
   var f4 = useState("price"); var sortBy = f4[0]; var setSortBy = f4[1];
   var f5 = useState(false); var searched = f5[0]; var setSearched = f5[1];
+  var f6 = useState(""); var filterCategory = f6[0]; var setFilterCategory = f6[1];
+  var f7 = useState(""); var filterMarket = f7[0]; var setFilterMarket = f7[1];
 
   // 데이터
   var d1 = useState([]); var data = d1[0]; var setData = d1[1];
@@ -282,10 +304,11 @@ function App() {
     return function(){ cancelled=true; clearInterval(iv); };
   }, []);
 
-  // 필터링
+  // 필터링 — 품목은 정확 일치
   var filtered = data.filter(function(r){
-    if(filterItem && !r.fullName.includes(filterItem) && !r.itemName.includes(filterItem)) return false;
-    if(filterRegion && r.market.region !== filterRegion) return false;
+    if(filterCategory && r.category !== filterCategory) return false;
+    if(filterItem && r.itemName !== filterItem) return false; // 정확 일치
+    if(filterMarket && r.market.name !== filterMarket) return false;
     if(keyword && !r.fullName.includes(keyword) && !r.market.name.includes(keyword) && !r.corp.includes(keyword) && !r.origin.includes(keyword)) return false;
     return true;
   }).sort(function(a,b){
@@ -295,9 +318,12 @@ function App() {
     return 0;
   });
 
-  // 품목 목록 (실제 데이터)
-  var itemList = Array.from(new Set(data.map(function(r){return r.itemName;}))).sort();
-  var regionList = Array.from(new Set(data.map(function(r){return r.market.region;}).filter(Boolean))).sort();
+  // 목록 (실제 데이터)
+  var categoryList = Array.from(new Set(data.map(function(r){return r.category;}))).sort();
+  var itemList = Array.from(new Set(
+    data.filter(function(r){return !filterCategory||r.category===filterCategory;}).map(function(r){return r.itemName;})
+  )).sort();
+  var marketList = Array.from(new Set(data.map(function(r){return r.market.name;}).filter(Boolean))).sort();
 
   var stats = {
     total: data.length,
@@ -370,6 +396,14 @@ function App() {
             <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:12}}>🔍 경락가 검색</div>
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              {/* 분류 */}
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>분류</div>
+                <select value={filterCategory} onChange={function(e){setFilterCategory(e.target.value);setFilterItem("");}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+                  <option value="">전체 분류</option>
+                  {categoryList.map(function(cat){return <option key={cat} value={cat}>{cat}</option>;})}
+                </select>
+              </div>
               {/* 품목 */}
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목</div>
@@ -378,14 +412,14 @@ function App() {
                   {itemList.map(function(name){return <option key={name} value={name}>{getEmoji(name)+" "+name}</option>;})}
                 </select>
               </div>
-              {/* 지역 */}
-              <div>
-                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>지역</div>
-                <select value={filterRegion} onChange={function(e){setFilterRegion(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
-                  <option value="">전체 지역</option>
-                  {regionList.map(function(r){return <option key={r} value={r}>{r}</option>;})}
-                </select>
-              </div>
+            </div>
+            {/* 시장 선택 */}
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>도매시장</div>
+              <select value={filterMarket} onChange={function(e){setFilterMarket(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+                <option value="">전체 시장</option>
+                {marketList.map(function(m){return <option key={m} value={m}>{m}</option>;})}
+              </select>
             </div>
 
             {/* 키워드 */}
