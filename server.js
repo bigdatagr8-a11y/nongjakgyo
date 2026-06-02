@@ -6,7 +6,7 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const API_KEY  = "b83cfe0351d50b47ac263390b267da3c484f8d9258bcafdea622b0b20a217b5f";
-const API_BASE = "http://211.237.50.150:7080/openapi/service/Grid_20240625000000000654_1";
+const API_BASE = "https://data.mafra.go.kr/openapi/data/Grid_20240625000000000654_1";
 
 app.use(cors());
 app.use(express.json());
@@ -25,7 +25,7 @@ app.get("/api/health", (req, res) => {
 app.get("/api/realtime", async (req, res) => {
   try {
     const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
-    const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&TYPE=json&SALEDATE=${date}`;
+const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&TYPE=json&SALEDATE=${date}`;
     console.log("[API]", url);
     const r = await fetch(url, { timeout: 15000 });
     const text = await r.text();
