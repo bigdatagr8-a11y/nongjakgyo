@@ -5,7 +5,7 @@ const cors    = require("cors");
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const API_KEY  = "BAD32D8B14BD47599CF0DAB131126502";
+const API_KEY  = "b83cfe0351d50b47ac263390b267da3c484f8d9258bcafdea622b0b20a217b5f";
 const AGRO_BASE = "https://at.agromarket.kr/openApi";
 
 app.use(cors());
