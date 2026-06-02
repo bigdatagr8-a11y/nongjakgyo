@@ -5,8 +5,8 @@ const cors    = require("cors");
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const API_KEY = "b83cfe0351d50b47ac263390b267da3c484f8d9258bcafdea622b0b20a217b5f";
-const API_URL = "http://211.237.50.150:7080/openapi/service/json/Grid_20240625000000000654_1";
+const API_KEY = "BAD32D8B14BD47599CF0DAB131126502";
+const API_URL = "https://at.agromarket.kr/openApi/realtimeInfo.do";
 
 app.use(cors());
 
@@ -24,7 +24,7 @@ app.get("/api/health", (req, res) => {
 app.get("/api/realtime", async (req, res) => {
   try {
     const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
-    const url = `${API_URL}/1/1000?serviceKey=${API_KEY}&SALEDATE=${date}&WHSALCD=1100`;
+    const url = `${API_URL}?apiKey=${API_KEY}&pageNo=1&pageSize=1000&saleDate=${date}`;
     console.log("[요청]", url);
     const r = await fetch(url, { timeout: 15000 });
     const text = await r.text();
@@ -38,7 +38,7 @@ app.get("/api/realtime", async (req, res) => {
 app.get("/api/both", async (req, res) => {
   try {
     const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
-    const url = `${API_URL}/1/1000?serviceKey=${API_KEY}&SALEDATE=${date}&WHSALCD=1100`;
+    const url = `${API_URL}?apiKey=${API_KEY}&pageNo=1&pageSize=1000&saleDate=${date}`;
     const r = await fetch(url, { timeout: 15000 });
     const text = await r.text();
     res.json({ ok: true, date, raw: text.slice(0, 2000) });
