@@ -6,7 +6,7 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const API_KEY  = "b83cfe0351d50b47ac263390b267da3c484f8d9258bcafdea622b0b20a217b5f";
-const API_BASE = "https://data.mafra.go.kr/openapi/data/Grid_20240625000000000654_1";
+const API_BASE = "http://211.237.50.150:7080/openapi/service/json/Grid_20240625000000000654_1";
 
 app.use(cors());
 app.use(express.json());
@@ -25,14 +25,15 @@ app.get("/api/health", (req, res) => {
 app.get("/api/realtime", async (req, res) => {
   try {
     const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
-const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&TYPE=json&SALEDATE=${date}`;
+    const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&SALEDATE=${date}`;
     console.log("[API]", url);
     const r = await fetch(url, { timeout: 15000 });
     const text = await r.text();
     let data;
-    try { data = JSON.parse(text); } 
-    catch(e) { return res.status(502).json({ ok:false, error:"JSON 파싱 실패", raw: text.slice(0,200) }); }
-    res.json({ ok: true, date, data });
+    try { data = JSON.parse(text); }
+    catch(e) { return res.status(502).json({ ok:false, error:"JSON 파싱 실패", raw: text.slice(0,300) }); }
+    const rows = data.Grid_20240625000000000654_1 || data.row || data.rows || [];
+    res.json({ ok: true, date, rows, total: rows.length });
   } catch(e) {
     res.status(502).json({ ok: false, error: e.message });
   }
@@ -41,13 +42,14 @@ const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&TYPE=json&SALEDATE=${date}`;
 app.get("/api/both", async (req, res) => {
   try {
     const date = req.query.date ? req.query.date.replace(/-/g,"") : getKST();
-    const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&TYPE=json&SALEDATE=${date}`;
+    const url = `${API_BASE}/1/1000?API_KEY=${API_KEY}&SALEDATE=${date}`;
     const r = await fetch(url, { timeout: 15000 });
     const text = await r.text();
     let data;
     try { data = JSON.parse(text); }
-    catch(e) { return res.status(502).json({ ok:false, error:"JSON 파싱 실패", raw: text.slice(0,200) }); }
-    res.json({ ok: true, date, realtime: data, settlement: null });
+    catch(e) { return res.status(502).json({ ok:false, error:"JSON 파싱 실패", raw: text.slice(0,300) }); }
+    const rows = data.Grid_20240625000000000654_1 || data.row || data.rows || [];
+    res.json({ ok: true, date, realtime: { rows }, settlement: null });
   } catch(e) {
     res.status(502).json({ ok: false, error: e.message });
   }
