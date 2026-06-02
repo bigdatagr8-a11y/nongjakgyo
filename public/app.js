@@ -3,7 +3,7 @@ var { useState, useEffect, useRef } = React;
 // ── Google Sheets 실시간 데이터 연동 ──
 // 시트 ID
 var SHEET_ID = "1K41TJcxgJdttUCaDsiqTBB7aoJWtdQkJre5RC2vlUZc";
-var CSV_URL = "/api/sheet"; // 서버 프록시 경유 (CORS 해결)
+var CSV_URL = "https://docs.google.com/..."; // 서버 프록시 경유 (CORS 해결)
 
 // CSV → 경락 레코드 변환
 function parseSheetRows(csvText, marketsMap) {
