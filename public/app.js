@@ -190,6 +190,41 @@ function StarRating(props) {
   return <span>{stars}</span>;
 }
 
+// ── 가상 낙찰자 / 등급 / 출하자 데이터 ──
+var MOCK_BIDDERS = [
+  "김철수","이영호","박민준","최성진","정재훈","강동원","윤서준","임태양",
+  "한상훈","오민석","신현우","황준혁","조성현","배재경","남기훈","류성민",
+];
+var MOCK_SHIPPERS = [
+  {name:"청송농협공선출하회",   phone:"054-873-1234"},
+  {name:"논산딸기연합회",       phone:"041-732-5678"},
+  {name:"나주배원예농협",       phone:"061-334-2222"},
+  {name:"성주참외농협",         phone:"054-931-3333"},
+  {name:"제주감귤출하조합",     phone:"064-742-4444"},
+  {name:"영천포도연합회",       phone:"054-338-5555"},
+  {name:"강원고랭지채소연합회", phone:"033-562-6666"},
+  {name:"무안양파농협",         phone:"061-452-7777"},
+  {name:"함안수박연합회",       phone:"055-585-8888"},
+  {name:"영양고추연합회",       phone:"054-682-9999"},
+  {name:"창녕토마토연합회",     phone:"055-533-1010"},
+  {name:"해남채소영농조합",     phone:"061-534-2020"},
+];
+var GRADES = ["특", "상", "보통"];
+var GRADE_WEIGHTS = [0.25, 0.50, 0.25]; // 특25% 상50% 보통25%
+
+function pickByWeight(arr, weights, seed) {
+  var v = ((seed * 6571 + 31337) % 99991) / 99991;
+  var cum = 0;
+  for(var i = 0; i < weights.length; i++) {
+    cum += weights[i];
+    if(v < cum) return arr[i];
+  }
+  return arr[arr.length-1];
+}
+function seedPick(arr, seed) {
+  return arr[Math.floor(((seed * 2654 + 12345) % 99999) / 99999 * arr.length)];
+}
+
 var idCounter = 10000;
 function makeMockData() {
   var result = [];
@@ -225,6 +260,7 @@ function makeMockData() {
       var newId = idCounter++;
       var mockRating = getMockRating(newId);
       var mockReviewCount = getMockReviewCount(newId);
+      var mockShipper = seedPick(MOCK_SHIPPERS, newId);
       result.push({
         id: newId,
         date: date,
@@ -240,6 +276,11 @@ function makeMockData() {
         emoji: getEmoji(itemName),
         category: getCategory(itemName),
         isMock: true,
+        // 추가 정보 (가상)
+        bidder:       seedPick(MOCK_BIDDERS, newId + 1),
+        grade:        pickByWeight(GRADES, GRADE_WEIGHTS, newId),
+        shipperName:  mockShipper.name,
+        shipperPhone: mockShipper.phone,
         rating: mockRating,
         reviewCount: mockReviewCount,
         reviews: getMockReviews(newId, 3),
@@ -283,6 +324,12 @@ function parseCSV(csvText) {
     var market = getMarket(mktName);
     var fullName = variety && variety !== itemName ? itemName+"("+variety+")" : itemName;
 
+    // 노은시장 추가 컬럼 (스프레드시트에 추가 예정: cols[9]~cols[12])
+    var bidder       = cols[9]  || "";   // 낙찰자명
+    var grade        = cols[10] || "";   // 등급 (특/상/보통)
+    var shipperName  = cols[11] || "";   // 출하자명
+    var shipperPhone = cols[12] || "";   // 출하자 연락처
+
     records.push({
       id: i,
       date: dateStr,
@@ -298,6 +345,10 @@ function parseCSV(csvText) {
       emoji: getEmoji(itemName),
       category: getCategory(itemName),
       isMock: false,
+      bidder: bidder,
+      grade: grade,
+      shipperName: shipperName,
+      shipperPhone: shipperPhone,
     });
   }
   return records;
@@ -346,7 +397,36 @@ function RecordCard(props) {
           <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📦 {r.qty}{r.unit}</span>
           {r.origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📍 {r.origin}</span>}
           {r.corp && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"3px 10px"}}>🏢 {r.corp}</span>}
+          {r.grade && <span style={{background: r.grade==="특"?"#fef9c3": r.grade==="상"?"#dbeafe":"#f3f4f6", color: r.grade==="특"?"#854d0e": r.grade==="상"?"#1e40af":"#555", fontSize:10,fontWeight:700,borderRadius:20,padding:"3px 10px"}}>🏅 {r.grade}등급</span>}
         </div>
+
+        {/* 낙찰자 / 출하자 정보 */}
+        {(r.bidder || r.shipperName) && (
+          <div style={{background:"#f8fffe",borderRadius:10,padding:"9px 12px",marginBottom:8,border:"1px solid #e0f7ec"}}>
+            <div style={{fontSize:10,fontWeight:700,color:G.mid,marginBottom:6}}>📋 거래 상세정보</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+              <div>
+                <div style={{fontSize:9,color:"#aaa",marginBottom:1}}>낙찰자</div>
+                <div style={{fontSize:12,fontWeight:700,color:"#1a1a1a"}}>{r.bidder || "-"}</div>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:"#aaa",marginBottom:1}}>등급</div>
+                <div style={{fontSize:12,fontWeight:700,color: r.grade==="특"?"#b45309": r.grade==="상"?"#1d4ed8":"#555"}}>{r.grade || "-"}</div>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:"#aaa",marginBottom:1}}>출하자</div>
+                <div style={{fontSize:12,fontWeight:600,color:"#1a1a1a"}}>{r.shipperName || "-"}</div>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:"#aaa",marginBottom:1}}>출하자 연락처</div>
+                {r.shipperPhone
+                  ? <a href={"tel:"+r.shipperPhone} style={{fontSize:12,fontWeight:600,color:G.light,textDecoration:"none"}}>{r.shipperPhone}</a>
+                  : <div style={{fontSize:12,color:"#ccc"}}>-</div>
+                }
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 리뷰 미리보기 토글 */}
         {r.reviews && r.reviews.length > 0 && (
