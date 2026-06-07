@@ -136,6 +136,60 @@ var VARIETIES = {
   "토마토": ["일반","완숙","방울"],
 };
 
+// ── 가상 별점 생성 (3.5~5.0, 0.5 단위) ──
+var MOCK_REVIEWS = [
+  "신선도가 정말 좋았어요. 다음에도 거래하고 싶습니다.",
+  "포장 상태 깔끔하고 품질 우수합니다.",
+  "가격 대비 품질 훌륭해요. 재구매 의향 있습니다.",
+  "배송 빠르고 상품 상태 양호했습니다.",
+  "예상보다 품질이 좋아서 만족합니다.",
+  "단골 거래처입니다. 항상 믿을 수 있어요.",
+  "크기 균일하고 맛도 좋았습니다.",
+  "가격이 저렴한 편인데 품질도 나쁘지 않아요.",
+  "이번 거래도 만족스러웠습니다.",
+  "신뢰할 수 있는 중도매인입니다. 추천합니다.",
+  "처음 거래였는데 기대 이상이었어요.",
+  "선별 상태 좋고 불량품 거의 없었습니다.",
+];
+
+function getMockRating(seed) {
+  // seed 기반으로 고정된 랜덤값 (새로고침마다 바뀌지 않게)
+  var v = ((seed * 9301 + 49297) % 233280) / 233280;
+  // 3.5, 4.0, 4.5, 5.0 중 하나 (높은 쪽 가중치)
+  var steps = [3.5, 4.0, 4.0, 4.5, 4.5, 4.5, 5.0, 5.0];
+  return steps[Math.floor(v * steps.length)];
+}
+
+function getMockReviewCount(seed) {
+  var v = ((seed * 1234 + 5678) % 9999) / 9999;
+  return Math.floor(v * 180) + 20; // 20~200건
+}
+
+function getMockReviews(seed, count) {
+  var reviews = [];
+  var reviewCount = Math.min(count, 3); // 최대 3개 미리보기
+  for(var i = 0; i < reviewCount; i++) {
+    var idx = (seed + i * 7) % MOCK_REVIEWS.length;
+    reviews.push(MOCK_REVIEWS[Math.floor(idx)]);
+  }
+  return reviews;
+}
+
+function StarRating(props) {
+  var rating = props.rating, size = props.size || 12;
+  var stars = [];
+  for(var i = 1; i <= 5; i++) {
+    var filled = i <= Math.floor(rating);
+    var half = !filled && i === Math.ceil(rating) && rating % 1 !== 0;
+    stars.push(
+      <span key={i} style={{color: filled || half ? "#f59e0b" : "#d1d5db", fontSize: size}}>
+        {filled ? "★" : half ? "⭐" : "☆"}
+      </span>
+    );
+  }
+  return <span>{stars}</span>;
+}
+
 var idCounter = 10000;
 function makeMockData() {
   var result = [];
@@ -168,8 +222,11 @@ function makeMockData() {
       // 날짜: 오늘 또는 어제 (랜덤)
       var date = Math.random() > 0.3 ? TODAY : YESTERDAY;
 
+      var newId = idCounter++;
+      var mockRating = getMockRating(newId);
+      var mockReviewCount = getMockReviewCount(newId);
       result.push({
-        id: idCounter++,
+        id: newId,
         date: date,
         market: market,
         itemName: itemName,
@@ -183,6 +240,9 @@ function makeMockData() {
         emoji: getEmoji(itemName),
         category: getCategory(itemName),
         isMock: true,
+        rating: mockRating,
+        reviewCount: mockReviewCount,
+        reviews: getMockReviews(newId, 3),
       });
     });
   });
@@ -247,6 +307,8 @@ function parseCSV(csvText) {
 function RecordCard(props) {
   var r = props.record, rank = props.rank;
   var isTop = rank === 1;
+  var rs = useState(false); var showReviews = rs[0]; var setShowReviews = rs[1];
+
   return (
     <div style={{background:"#fff",borderRadius:16,border:"2px solid "+(isTop?"#4ade80":"#e5e7eb"),overflow:"hidden",boxShadow:isTop?"0 4px 20px rgba(74,222,128,0.15)":"0 2px 8px rgba(0,0,0,0.05)"}}>
       {isTop && <div style={{background:"linear-gradient(90deg,#0d2b1a,#1b4332)",padding:"4px 14px",fontSize:11,color:"#4ade80",fontWeight:700}}>🏆 최저가</div>}
@@ -264,6 +326,14 @@ function RecordCard(props) {
               <div style={{fontSize:11,color:"#888",marginTop:1}}>
                 🏛️ {r.market.name} · {r.market.region}
               </div>
+              {/* 별점 */}
+              {r.rating && (
+                <div style={{display:"flex",alignItems:"center",gap:4,marginTop:3}}>
+                  <StarRating rating={r.rating} size={11}/>
+                  <span style={{fontSize:11,fontWeight:700,color:"#f59e0b"}}>{r.rating.toFixed(1)}</span>
+                  <span style={{fontSize:10,color:"#aaa"}}>({r.reviewCount}건)</span>
+                </div>
+              )}
             </div>
           </div>
           <div style={{textAlign:"right"}}>
@@ -277,6 +347,27 @@ function RecordCard(props) {
           {r.origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📍 {r.origin}</span>}
           {r.corp && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"3px 10px"}}>🏢 {r.corp}</span>}
         </div>
+
+        {/* 리뷰 미리보기 토글 */}
+        {r.reviews && r.reviews.length > 0 && (
+          <div style={{marginBottom:8}}>
+            <button onClick={function(){setShowReviews(!showReviews);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:G.light,fontWeight:600,cursor:"pointer"}}>
+              {showReviews ? "▲ 리뷰 접기" : "▼ 거래후기 보기 ("+r.reviewCount+"건)"}
+            </button>
+            {showReviews && (
+              <div style={{marginTop:6,display:"flex",flexDirection:"column",gap:5}}>
+                {r.reviews.map(function(rv, i){
+                  return (
+                    <div key={i} style={{background:"#f8fffe",borderRadius:8,padding:"7px 10px",fontSize:11,color:"#444",borderLeft:"3px solid #bbf7d0",lineHeight:1.5}}>
+                      <StarRating rating={r.rating} size={10}/> <span style={{color:"#888",marginLeft:4}}>{rv}</span>
+                    </div>
+                  );
+                })}
+                <div style={{fontSize:10,color:"#bbb",textAlign:"right"}}>외 {r.reviewCount-3}건의 후기 더 보기</div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:10,color:"#aaa"}}>🕐 {r.date}</div>
