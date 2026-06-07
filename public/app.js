@@ -53,10 +53,11 @@ var MARKETS = [
 ];
 
 function getMarket(sheetName) {
+  if(!sheetName) return {id:0, name:"기타", region:"기타", sheetName:"", phone:"", corp:""};
   var found = MARKETS.find(function(m){
-    return sheetName && (sheetName.includes(m.sheetName) || m.sheetName.includes(sheetName));
+    return sheetName.includes(m.sheetName) || m.sheetName.includes(sheetName) || sheetName.replace(/\s/g,"").includes(m.sheetName) || m.sheetName.includes(sheetName.replace(/\s/g,""));
   });
-  return found || {id:0, name:sheetName||"기타", region:"기타", sheetName:sheetName, phone:"", corp:""};
+  return found || {id:0, name:sheetName, region:"기타", sheetName:sheetName, phone:"", corp:""};
 }
 
 // ── 가상 데이터 생성 (노은시장 제외) ──
@@ -123,6 +124,7 @@ var CORPS_BY_MARKET = {
   5: ["삼산청과","인천서부청과"],
   6: ["광주청과","전남청과","남도청과"],
   7: ["대전청과","충청청과","중부청과"],
+  8: ["중부청과"],
   9: ["울산청과","동울산청과","영남청과"],
 };
 
@@ -311,7 +313,7 @@ function parseCSV(csvText) {
     cols.push(cur.trim());
 
     if(cols.length < 9) continue;
-    var dateStr  = cols[0]||"";
+    var dateStr  = (cols[0]||"").split(" ")[0];  // 경매일시 → 날짜만 추출
     var mktName  = cols[1]||"";
     var corpName = cols[2]||"";
     var itemName = cols[3]||"";
@@ -645,7 +647,8 @@ function App() {
   var itemList = Array.from(new Set(
     data.filter(function(r){return !filterCategory||r.category===filterCategory;}).map(function(r){return r.itemName;})
   )).sort();
-  var marketList = Array.from(new Set(data.map(function(r){return r.market.name;}).filter(Boolean))).sort();
+  // 9개 시장 항상 고정 표시 (데이터 유무 상관없이)
+  var marketList = MARKETS.map(function(m){ return m.name; });
 
   var stats = {
     total: data.length,
