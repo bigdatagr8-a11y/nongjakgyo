@@ -48,7 +48,7 @@ var MARKETS = [
   {id:5, name:"인천 삼산시장",  region:"인천", sheetName:"인천삼산",  phone:"032-510-3000", corp:"삼산청과"},
   {id:6, name:"광주 각화시장",  region:"광주", sheetName:"광주각화",  phone:"062-380-5000", corp:"광주청과"},
   {id:7, name:"대전 오정시장",  region:"대전", sheetName:"대전오정",  phone:"042-580-5000", corp:"대전청과"},
-  {id:8, name:"대전 노은시장",  region:"대전", sheetName:"대전노은",  phone:"042-201-1426", corp:"중부청과"},
+  {id:8, name:"대전 노은시장",  region:"대전", sheetName:"대전노은",  phone:"",             corp:"중부청과"},  // 실제 번호 입력 예정
   {id:9, name:"울산 도매시장",  region:"울산", sheetName:"울산",      phone:"052-229-4000", corp:"울산청과"},
 ];
 
@@ -230,8 +230,8 @@ function makeMockData() {
   var result = [];
   var itemNames = Object.keys(PRICE_BASE);
 
-  // 노은시장(id:8) 제외한 시장들
-  var mockMarkets = MARKETS.filter(function(m){ return m.id !== 8; });
+  // 노은시장 포함 전체 시장 (노은은 추가정보 빈 틀만)
+  var mockMarkets = MARKETS;
 
   mockMarkets.forEach(function(market) {
     var corps = CORPS_BY_MARKET[market.id] || ["지역청과"];
@@ -260,7 +260,8 @@ function makeMockData() {
       var newId = idCounter++;
       var mockRating = getMockRating(newId);
       var mockReviewCount = getMockReviewCount(newId);
-      var mockShipper = seedPick(MOCK_SHIPPERS, newId);
+      var isNoeun = market.id === 8;
+      var mockShipper = isNoeun ? {name:"", phone:""} : seedPick(MOCK_SHIPPERS, newId);
       result.push({
         id: newId,
         date: date,
@@ -275,15 +276,16 @@ function makeMockData() {
         corp: corp,
         emoji: getEmoji(itemName),
         category: getCategory(itemName),
-        isMock: true,
-        // 추가 정보 (가상)
-        bidder:       seedPick(MOCK_BIDDERS, newId + 1),
-        grade:        pickByWeight(GRADES, GRADE_WEIGHTS, newId),
-        shipperName:  mockShipper.name,
-        shipperPhone: mockShipper.phone,
-        rating: mockRating,
-        reviewCount: mockReviewCount,
-        reviews: getMockReviews(newId, 3),
+        isMock: isNoeun ? false : true,  // 노은은 실제 데이터 틀로 표시
+        isPlaceholder: isNoeun,          // 노은 플레이스홀더 표시
+        // 추가 정보: 노은은 빈 틀, 나머지는 가상
+        bidder:       isNoeun ? "" : seedPick(MOCK_BIDDERS, newId + 1),
+        grade:        isNoeun ? "" : pickByWeight(GRADES, GRADE_WEIGHTS, newId),
+        shipperName:  isNoeun ? "" : mockShipper.name,
+        shipperPhone: isNoeun ? "" : mockShipper.phone,
+        rating:       isNoeun ? null : mockRating,
+        reviewCount:  isNoeun ? null : mockReviewCount,
+        reviews:      isNoeun ? [] : getMockReviews(newId, 3),
       });
     });
   });
@@ -452,8 +454,11 @@ function RecordCard(props) {
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:10,color:"#aaa"}}>🕐 {r.date}</div>
           <div style={{display:"flex",gap:6}}>
-            <a href={"tel:"+r.market.phone} style={{background:"#f0fdf4",color:G.mid,border:"1px solid #bbf7d0",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,textDecoration:"none"}}>📞 문의</a>
-            <button style={{background:G.mid,color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}} onClick={function(){alert("거래 문의는 해당 도매시장 법인("+r.corp+")에 직접 연락하세요.\n📞 "+r.market.phone+"\n🏛️ "+r.market.name);}}>거래하기</button>
+            {r.market.phone
+              ? <a href={"tel:"+r.market.phone} style={{background:"#f0fdf4",color:G.mid,border:"1px solid #bbf7d0",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,textDecoration:"none"}}>📞 {r.market.phone}</a>
+              : <span style={{background:"#f3f4f6",color:"#bbb",border:"1px solid #e5e7eb",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700}}>📞 번호 입력 예정</span>
+            }
+            <button style={{background:G.mid,color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}} onClick={function(){alert("거래 문의는 해당 도매시장 법인("+r.corp+")에 직접 연락하세요.\n"+(r.market.phone?"📞 "+r.market.phone:"📞 연락처 등록 예정")+"\n🏛️ "+r.market.name);}}>거래하기</button>
           </div>
         </div>
       </div>
@@ -593,10 +598,16 @@ function App() {
         var csv = await res.text();
         if(cancelled) return;
         var liveRows = parseCSV(csv);
-        // 실제 데이터 + 가상 데이터 합치기 (노은시장 실제 데이터 우선)
-        var combined = liveRows.concat(mockData);
+        // Sheets 실제 데이터에서 노은시장 행만 추출
+        var liveNoeun = liveRows.filter(function(r){ return r.market.id === 8; });
+        // 나머지 시장 Sheets 데이터 (노은 외)
+        var liveOthers = liveRows.filter(function(r){ return r.market.id !== 8; });
+        // mockData에서 노은 플레이스홀더 제거하고, 나머지 가상 데이터 유지
+        var mockOthers = mockData.filter(function(r){ return r.market.id !== 8; });
+        // 합치기: 노은 실제 + 다른시장 Sheets + 다른시장 가상
+        var combined = liveNoeun.concat(liveOthers).concat(mockOthers);
         setData(combined);
-        setLiveCount(liveRows.length);
+        setLiveCount(liveNoeun.length);
         setStatus("ok");
         setLastUpdated(new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}));
       } catch(e) {
@@ -799,16 +810,16 @@ function App() {
             <div style={{fontWeight:900,fontSize:17,marginBottom:8}}>🌿 농작교란?</div>
             <div style={{fontSize:13,lineHeight:1.8,color:"rgba(255,255,255,0.85)"}}>
               전국 9개 중앙공영도매시장의 실시간 경락 정보를 제공하는 <b style={{color:"#4ade80"}}>수수료 없는 공영 중계 플랫폼</b>입니다.<br/>
-              중도매인과 소매업자를 직접 연결합니다.
+              중도매인과 소매 구매자를 직접 연결해 유통 단계를 줄입니다.
             </div>
           </div>
 
           {[
-            {icon:"🏛️", title:"9개 중앙공영도매시장", desc:"서울가락·부산엄궁·대구북부·인천남촌·인천삼산·광주각화·대전오정·대전노은·울산"},
-            {icon:"🔴", title:"노은시장 실시간 연동", desc:"대전 노은시장 경락 데이터를 aT API 기반으로 실시간 반영 · 1시간마다 자동 업데이트"},
-            {icon:"📊", title:"전국 경락 통합 검색", desc:"9개 시장 품목별·지역별·가격별 통합 검색 · 최저가 자동 정렬"},
-            {icon:"💰", title:"수수료 없는 공영 중계", desc:"플랫폼 수수료 0원 · 경락 정보만 투명하게 공개 · 직접 거래 유도"},
-            {icon:"📞", title:"거래 문의", desc:"해당 도매시장 법인에 직접 연락 · 중간 유통 없는 직거래"},
+            {icon:"🏛️", title:"9개 중앙공영도매시장 통합", desc:"서울가락·부산엄궁·대구북부·인천남촌·인천삼산·광주각화·대전오정·대전노은·울산 — 전국 주요 공영도매시장 경락 데이터를 한 곳에서 조회"},
+            {icon:"📡", title:"agromarket.kr 실시간 연동", desc:"전국 9개 시장 모두 agromarket.kr 데이터 기반 실시간 경락 정보 제공 · 1시간마다 자동 업데이트"},
+            {icon:"📋", title:"대전 노은시장 상세정보 제공", desc:"노은시장은 기본 경락 정보 외에 낙찰자명·등급(특/상/보통)·출하자명·출하자 연락처까지 추가 제공"},
+            {icon:"💰", title:"수수료 없는 공영 중계", desc:"플랫폼 수수료 0원 · 경락 정보를 투명하게 공개해 중도매인과 구매자 간 직접 거래 유도"},
+            {icon:"📞", title:"직거래 문의", desc:"각 카드의 전화 버튼으로 해당 도매시장 법인에 직접 연락 · 중간 유통 없는 직거래 지원"},
           ].map(function(item){return (
             <div key={item.title} style={{background:"#fff",borderRadius:14,padding:"14px 16px",marginBottom:10,border:"1px solid #e5e7eb",display:"flex",gap:12,alignItems:"flex-start"}}>
               <div style={{fontSize:24,flexShrink:0}}>{item.icon}</div>
@@ -819,21 +830,12 @@ function App() {
             </div>
           );})}
 
-          <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:14,padding:"14px 16px",marginTop:4}}>
-            <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:6}}>📞 운영 문의</div>
-            <div style={{fontSize:12,color:"#78350f",lineHeight:1.8}}>
-              농림축산식품부 빅데이터전략팀<br/>
-              담당자: 남석현<br/>
-              📞 044-201-1426
-            </div>
-          </div>
-
           {/* 데이터 출처 안내 */}
-          <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:14,padding:"14px 16px",marginTop:10}}>
+          <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:14,padding:"14px 16px",marginTop:4}}>
             <div style={{fontWeight:700,fontSize:13,color:G.mid,marginBottom:6}}>ℹ️ 데이터 출처</div>
             <div style={{fontSize:12,color:"#555",lineHeight:1.8}}>
-              📍 <b>대전 노은시장</b>: aT 농수산물 유통정보 API 실시간 연동<br/>
-              📍 <b>기타 8개 시장</b>: agromarket.kr 기준 경락 참고 데이터<br/>
+              📍 <b>전국 9개 시장</b>: agromarket.kr 실시간 경락 데이터<br/>
+              📍 <b>대전 노은시장</b>: 낙찰자·등급·출하자 상세정보 추가 제공<br/>
               <span style={{color:"#888",fontSize:11}}>※ 실제 거래 전 반드시 해당 시장에 확인하세요</span>
             </div>
           </div>
