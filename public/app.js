@@ -602,17 +602,21 @@ function App() {
         var liveNoeun = liveRows.filter(function(r){ return r.market.id === 8; });
         // 나머지 시장 Sheets 데이터 (노은 외)
         var liveOthers = liveRows.filter(function(r){ return r.market.id !== 8; });
-        // mockData에서 노은 플레이스홀더 제거하고, 나머지 가상 데이터 유지
+        // mockData에서 노은 플레이스홀더, 나머지 가상 데이터 분리
+        var mockNoeun  = mockData.filter(function(r){ return r.market.id === 8; });
         var mockOthers = mockData.filter(function(r){ return r.market.id !== 8; });
-        // 합치기: 노은 실제 + 다른시장 Sheets + 다른시장 가상
-        var combined = liveNoeun.concat(liveOthers).concat(mockOthers);
+        // 노은: 실제 데이터 있으면 실제, 없으면 플레이스홀더 유지
+        var noeunRows = liveNoeun.length > 0 ? liveNoeun : mockNoeun;
+        // 합치기: 노은 + 다른시장 Sheets + 다른시장 가상
+        var combined = noeunRows.concat(liveOthers).concat(mockOthers);
         setData(combined);
         setLiveCount(liveNoeun.length);
         setStatus("ok");
         setLastUpdated(new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}));
       } catch(e) {
         if(!cancelled) {
-          // 실패해도 가상 데이터는 보여주기
+          // 실패해도 전체 mockData(노은 플레이스홀더 포함) 유지
+          setData(mockData);
           setStatus("partial");
           setErrMsg(e.message);
         }
