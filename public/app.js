@@ -358,12 +358,143 @@ function parseCSV(csvText) {
   return records;
 }
 
+// ── 중도매인 채팅 모달 ──
+function ChatModal(props) {
+  var onClose = props.onClose, record = props.record, tradeRow = props.tradeRow;
+  var ms = useState([]); var messages = ms[0]; var setMessages = ms[1];
+  var is = useState(false); var isLoading = is[0]; var setIsLoading = is[1];
+  var inp = useState(""); var input = inp[0]; var setInput = inp[1];
+  var bottomRef = useRef(null);
+
+  var bidderName = (tradeRow && tradeRow["낙찰 중도매인"]) || record.bidder || "중도매인";
+  var bidderPhone = (tradeRow && tradeRow["중도매인 연락처"]) || record.shipperPhone || "";
+  var itemName = record.fullName || record.itemName;
+  var origin = record.origin || "";
+  var price = record.price || 0;
+  var grade = (tradeRow && tradeRow["등급"]) || record.grade || "";
+  var qty = (tradeRow && tradeRow["수량"]) || record.qty || "";
+
+  // 첫 인사 메시지
+  useEffect(function(){
+    setMessages([{
+      role:"assistant",
+      text:"안녕하세요! 저는 대전 노은시장 중도매인 "+bidderName+"입니다. 오늘 "+itemName+(origin?" ("+origin+"산)":"")+" 경매에 참여했습니다. 궁금하신 점 있으시면 말씀해 주세요!"
+    }]);
+  }, []);
+
+  useEffect(function(){
+    if(bottomRef.current) bottomRef.current.scrollIntoView({behavior:"smooth"});
+  }, [messages]);
+
+  async function sendMessage() {
+    var text = input.trim();
+    if(!text || isLoading) return;
+    setInput("");
+    var newMessages = messages.concat([{role:"user", text:text}]);
+    setMessages(newMessages);
+    setIsLoading(true);
+
+    try {
+      var systemPrompt = "당신은 대전 노은시장의 중도매인 "+bidderName+"입니다. 소매상과 거래 협의 중입니다.\n\n현재 취급 품목 정보:\n- 품목: "+itemName+"\n- 산지: "+(origin||"국산")+"\n- 낙찰가: "+price.toLocaleString()+"원/"+record.unit+"\n- 등급: "+(grade||"-")+"\n- 수량: "+qty+record.unit+"\n\n실제 중도매인처럼 자연스럽고 친근하게 대화하세요. 가격 협의, 품질, 배송, 거래 조건 등에 대해 구체적으로 답변하세요. 한국어로만 답변하고 2-3문장으로 간결하게.";
+
+      var res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          system: systemPrompt,
+          messages: newMessages.map(function(m){ return {role:m.role==="assistant"?"assistant":"user", content:m.text}; })
+        })
+      });
+      var data = await res.json();
+      var reply = data.content && data.content[0] ? data.content[0].text : "잠시 후 다시 시도해주세요.";
+      setMessages(newMessages.concat([{role:"assistant", text:reply}]));
+    } catch(e) {
+      setMessages(newMessages.concat([{role:"assistant", text:"연결이 원활하지 않습니다. 직접 연락 부탁드립니다."}]));
+    }
+    setIsLoading(false);
+  }
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:9999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:600,maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
+
+        {/* 헤더 */}
+        <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:"20px 20px 0 0",padding:"14px 16px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>중도매인 채팅</div>
+              <div style={{color:"#fff",fontWeight:800,fontSize:15,marginTop:2}}>
+                {bidderName} <span style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:400}}>· 대전 노은시장</span>
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:4,alignItems:"center"}}>
+                <span style={{background:"rgba(74,222,128,0.2)",color:"#4ade80",fontSize:10,borderRadius:20,padding:"2px 8px"}}>{itemName} {grade&&"· "+grade+"등급"}</span>
+                {bidderPhone && <a href={"tel:"+bidderPhone} style={{color:"#86efac",fontSize:10,textDecoration:"none"}}>📞 {bidderPhone}</a>}
+                {!bidderPhone && <span style={{color:"rgba(255,255,255,0.4)",fontSize:10}}>📞 연락처 등록 예정</span>}
+              </div>
+            </div>
+            <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:30,height:30,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          </div>
+        </div>
+
+        {/* 메시지 영역 */}
+        <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:10,background:"#f8fffe"}}>
+          {messages.map(function(m,i){
+            var isUser = m.role==="user";
+            return (
+              <div key={i} style={{display:"flex",justifyContent:isUser?"flex-end":"flex-start"}}>
+                {!isUser && <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#0d2b1a,#40916c)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,marginRight:8,flexShrink:0}}>🌿</div>}
+                <div style={{maxWidth:"75%",background:isUser?"#0d2b1a":"#fff",color:isUser?"#fff":"#1a1a1a",borderRadius:isUser?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"9px 13px",fontSize:13,lineHeight:1.6,boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+                  {m.text}
+                </div>
+              </div>
+            );
+          })}
+          {isLoading && (
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#0d2b1a,#40916c)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🌿</div>
+              <div style={{background:"#fff",borderRadius:"16px 16px 16px 4px",padding:"9px 13px",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+                <div style={{display:"flex",gap:4}}>
+                  {[0,1,2].map(function(i){return <div key={i} style={{width:6,height:6,borderRadius:"50%",background:"#aaa",animation:"bounce 1s infinite",animationDelay:i*0.2+"s"}}/>;}) }
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef}/>
+        </div>
+
+        {/* 빠른 질문 */}
+        <div style={{padding:"8px 16px",background:"#f0fdf4",display:"flex",gap:6,overflowX:"auto"}}>
+          {["가격 협의 가능한가요?","품질 상태는 어떤가요?","최소 구매 수량은?","언제 배송 가능한가요?"].map(function(q){return(
+            <button key={q} onClick={function(){setInput(q);}} style={{background:"#fff",border:"1px solid #bbf7d0",borderRadius:20,padding:"5px 12px",fontSize:11,color:G.mid,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{q}</button>
+          );})}
+        </div>
+
+        {/* 입력창 */}
+        <div style={{padding:"10px 16px 20px",background:"#fff",display:"flex",gap:8,borderTop:"1px solid #e5e7eb"}}>
+          <input
+            value={input}
+            onChange={function(e){setInput(e.target.value);}}
+            onKeyDown={function(e){if(e.key==="Enter")sendMessage();}}
+            placeholder="메시지 입력..."
+            style={{flex:1,border:"1.5px solid #bbf7d0",borderRadius:20,padding:"10px 14px",fontSize:13,outline:"none",fontFamily:"inherit"}}
+          />
+          <button onClick={sendMessage} disabled={!input.trim()||isLoading} style={{background:input.trim()&&!isLoading?G.mid:"#e5e7eb",color:"#fff",border:"none",borderRadius:"50%",width:40,height:40,fontSize:16,cursor:input.trim()&&!isLoading?"pointer":"default",flexShrink:0}}>↑</button>
+        </div>
+      </div>
+      <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}`}</style>
+    </div>
+  );
+}
+
 // ── 경락 카드 ──
 function RecordCard(props) {
   var r = props.record, rank = props.rank, tradeData = props.tradeData || [];
   var isTop = rank === 1;
   var rs = useState(false); var showReviews = rs[0]; var setShowReviews = rs[1];
   var ts = useState(false); var showTrade = ts[0]; var setShowTrade = ts[1];
+  var cs = useState(false); var showChat = cs[0]; var setShowChat = cs[1];
 
   // 노은시장 카드일 때 품목명으로 거래실적 매칭
   var matchedTrades = [];
@@ -373,6 +504,7 @@ function RecordCard(props) {
       return t품목 && (t품목.includes(r.itemName) || r.itemName.includes(t품목) || r.fullName.includes(t품목));
     }).slice(0, 20);
   }
+  var chatTradeRow = matchedTrades.length > 0 ? matchedTrades[0] : null;
 
   return (
     <div style={{background:"#fff",borderRadius:16,border:"2px solid "+(isTop?"#4ade80":"#e5e7eb"),overflow:"hidden",boxShadow:isTop?"0 4px 20px rgba(74,222,128,0.15)":"0 2px 8px rgba(0,0,0,0.05)"}}>
@@ -512,9 +644,12 @@ function RecordCard(props) {
               ? <a href={"tel:"+r.market.phone} style={{background:"#f0fdf4",color:G.mid,border:"1px solid #bbf7d0",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,textDecoration:"none"}}>📞 {r.market.phone}</a>
               : <span style={{background:"#f3f4f6",color:"#bbb",border:"1px solid #e5e7eb",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700}}>📞 번호 입력 예정</span>
             }
+            {r.market.id === 8 && <button onClick={function(){setShowChat(true);}} style={{background:"#1e40af",color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>}
             <button style={{background:G.mid,color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}} onClick={function(){alert("거래 문의는 해당 도매시장 법인("+r.corp+")에 직접 연락하세요.\n"+(r.market.phone?"📞 "+r.market.phone:"📞 연락처 등록 예정")+"\n🏛️ "+r.market.name);}}>거래하기</button>
           </div>
         </div>
+
+        {showChat && <ChatModal record={r} tradeRow={chatTradeRow} onClose={function(){setShowChat(false);}}/>}
 
       </div>
     </div>
@@ -619,6 +754,201 @@ function MarketMap(props) {
   );
 }
 
+// ── 가상 계정 ──
+var ACCOUNTS = {
+  buyer:  { pw:"1234", role:"buyer",  name:"김소매",   biz:"소매상회",     bizNo:"123-45-67890", phone:"010-1234-5678" },
+  dealer: { pw:"1234", role:"dealer", name:"중도매인",  dealerNo:"45" },
+};
+
+// ── 로그인 모달 ──
+function LoginModal(props) {
+  var onLogin = props.onLogin, onClose = props.onClose;
+  var rs = useState("buyer"); var role = rs[0]; var setRole = rs[1];
+  var is = useState(""); var id = is[0]; var setId = is[1];
+  var ps = useState(""); var pw = ps[0]; var setPw = ps[1];
+  var es = useState(""); var err = es[0]; var setErr = es[1];
+
+  function doLogin() {
+    var acc = ACCOUNTS[id];
+    if(!acc || acc.pw !== pw) { setErr("아이디 또는 비밀번호가 올바르지 않습니다."); return; }
+    if(acc.role !== role) { setErr("선택한 회원 유형과 계정이 맞지 않습니다."); return; }
+    onLogin({id:id, ...acc});
+  }
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:360,overflow:"hidden"}}>
+        <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",padding:"20px 20px 16px"}}>
+          <div style={{color:"#52b788",fontSize:10,letterSpacing:3,fontWeight:700}}>AGRO CONNECT</div>
+          <div style={{color:"#fff",fontWeight:900,fontSize:18,marginTop:4}}>농작교 로그인</div>
+          <button onClick={onClose} style={{position:"absolute",top:14,right:14,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:28,height:28,cursor:"pointer",fontSize:14}}>✕</button>
+        </div>
+        <div style={{padding:"20px"}}>
+          {/* 회원 유형 선택 */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+            {[["buyer","🛒 구매자"],["dealer","🏪 중도매인"]].map(function(r){return(
+              <button key={r[0]} onClick={function(){setRole(r[0]);setId("");setPw("");setErr("");}} style={{padding:"10px",border:"2px solid "+(role===r[0]?G.mid:"#e5e7eb"),borderRadius:12,background:role===r[0]?"#f0fdf4":"#fff",color:role===r[0]?G.mid:"#888",fontWeight:role===r[0]?800:400,fontSize:13,cursor:"pointer"}}>
+                {r[1]}
+              </button>
+            );})}
+          </div>
+
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:11,color:"#888",marginBottom:4,fontWeight:700}}>아이디</div>
+            <input value={id} onChange={function(e){setId(e.target.value);setErr("");}} placeholder={role==="buyer"?"buyer":"dealer"} style={{width:"100%",border:"1.5px solid #e5e7eb",borderRadius:10,padding:"10px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,color:"#888",marginBottom:4,fontWeight:700}}>비밀번호</div>
+            <input type="password" value={pw} onChange={function(e){setPw(e.target.value);setErr("");}} onKeyDown={function(e){if(e.key==="Enter")doLogin();}} placeholder="1234" style={{width:"100%",border:"1.5px solid #e5e7eb",borderRadius:10,padding:"10px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+
+          {err && <div style={{background:"#fef2f2",color:"#dc2626",fontSize:12,borderRadius:8,padding:"8px 12px",marginBottom:12}}>{err}</div>}
+
+          <button onClick={doLogin} style={{width:"100%",background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"13px",fontSize:14,fontWeight:900,cursor:"pointer"}}>로그인</button>
+
+          <div style={{marginTop:12,padding:"10px 12px",background:"#f8fffe",borderRadius:10,fontSize:11,color:"#888"}}>
+            <div>🛒 구매자: <b>buyer</b> / 1234</div>
+            <div style={{marginTop:3}}>🏪 중도매인: <b>dealer</b> / 1234</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 구매자 마이페이지 ──
+function BuyerMyPage(props) {
+  var user = props.user, onLogout = props.onLogout;
+  var ns = useState(user.name||""); var name = ns[0]; var setName = ns[1];
+  var bs = useState(user.biz||""); var biz = bs[0]; var setBiz = bs[1];
+  var bnos = useState(user.bizNo||""); var bizNo = bnos[0]; var setBizNo = bnos[1];
+  var phs = useState(user.phone||""); var phone = phs[0]; var setPhone = phs[1];
+  var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
+
+  function save() {
+    setSaved(true);
+    setTimeout(function(){setSaved(false);}, 2000);
+  }
+
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:20,padding:"20px",marginBottom:14,color:"#fff"}}>
+        <div style={{fontSize:10,color:"#52b788",letterSpacing:2,fontWeight:700,marginBottom:4}}>구매자 마이페이지</div>
+        <div style={{fontWeight:900,fontSize:18}}>🛒 {name||"구매자"}</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:4}}>농작교 소매 구매자</div>
+      </div>
+
+      <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+        <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>📋 내 정보</div>
+        {[
+          ["담당자명","text",name,setName,"홍길동"],
+          ["상호","text",biz,setBiz,"소매상회"],
+          ["사업자 등록번호","text",bizNo,setBizNo,"123-45-67890"],
+          ["연락처","tel",phone,setPhone,"010-0000-0000"],
+        ].map(function(f){return(
+          <div key={f[0]} style={{marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>{f[0]}</div>
+            <input type={f[1]} value={f[2]} onChange={function(e){f[3](e.target.value);}} placeholder={f[4]}
+              style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"10px 12px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+          </div>
+        );})}
+        <button onClick={save} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s"}}>
+          {isSaved ? "✅ 저장되었습니다" : "저장하기"}
+        </button>
+      </div>
+
+      <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>로그아웃</button>
+    </div>
+  );
+}
+
+// ── 중도매인 마이페이지 ──
+function DealerMyPage(props) {
+  var user = props.user, tradeData = props.tradeData, onLogout = props.onLogout;
+  var listed = useState({}); var listedMap = listed[0]; var setListedMap = listed[1];
+
+  // 내 낙찰번호로 거래실적 필터
+  var myTrades = tradeData.filter(function(t){
+    var no = String(t["낙찰 중도매인"]||"").trim();
+    return no === String(user.dealerNo);
+  });
+
+  // 품목별 그룹
+  var grouped = {};
+  myTrades.forEach(function(t){
+    var key = (t["품목명"]||t["품목"]||"").trim();
+    if(!key) return;
+    if(!grouped[key]) grouped[key] = [];
+    grouped[key].push(t);
+  });
+
+  function toggleListed(key) {
+    var next = Object.assign({}, listedMap);
+    next[key] = !next[key];
+    setListedMap(next);
+  }
+
+  var listedItems = Object.keys(listedMap).filter(function(k){return listedMap[k];});
+
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:20,padding:"20px",marginBottom:14,color:"#fff"}}>
+        <div style={{fontSize:10,color:"#52b788",letterSpacing:2,fontWeight:700,marginBottom:4}}>중도매인 마이페이지</div>
+        <div style={{fontWeight:900,fontSize:18}}>🏪 중도매인 #{user.dealerNo}</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:4}}>대전 노은시장 · 당일 낙찰 품목</div>
+        {listedItems.length > 0 && <div style={{marginTop:8,background:"rgba(74,222,128,0.2)",borderRadius:10,padding:"6px 10px",fontSize:11,color:"#4ade80",fontWeight:700}}>
+          📢 {listedItems.length}개 품목 검색 노출 중
+        </div>}
+      </div>
+
+      {myTrades.length === 0 && (
+        <div style={{textAlign:"center",padding:"40px 0",background:"#fff",borderRadius:16,border:"1px solid #e5e7eb"}}>
+          <div style={{fontSize:32,marginBottom:10}}>📋</div>
+          <div style={{fontSize:13,color:"#888"}}>낙찰번호 #{user.dealerNo}의 거래실적이 없습니다</div>
+          <div style={{fontSize:11,color:"#aaa",marginTop:6}}>발표 당일 데이터로 자동 업데이트됩니다</div>
+        </div>
+      )}
+
+      {Object.keys(grouped).length > 0 && (
+        <div>
+          <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:10}}>📦 내 낙찰 품목 — 노출 선택</div>
+          {Object.keys(grouped).map(function(itemName){
+            var trades = grouped[itemName];
+            var isOn = !!listedMap[itemName];
+            var totalQty = trades.reduce(function(s,t){return s+(parseInt(t["수량"])||0);},0);
+            var avgPrice = Math.round(trades.reduce(function(s,t){return s+(parseInt(t["단가"])||0);},0)/trades.length);
+            var grade = (trades[0]["등급"]||"").trim();
+            return (
+              <div key={itemName} style={{background:"#fff",borderRadius:14,padding:"14px",marginBottom:10,border:"2px solid "+(isOn?"#4ade80":"#e5e7eb"),boxShadow:isOn?"0 2px 12px rgba(74,222,128,0.15)":"none"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:22}}>{getEmoji(itemName)}</span>
+                    <div>
+                      <div style={{fontWeight:800,fontSize:14,color:"#0d1f15"}}>{itemName}</div>
+                      <div style={{fontSize:11,color:"#888"}}>{trades.length}건 · 총 {totalQty}개 · 평균 {avgPrice.toLocaleString()}원</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {grade && <span style={{background:"#fef9c3",color:"#854d0e",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 8px"}}>{grade}등급</span>}
+                    <button onClick={function(){toggleListed(itemName);}} style={{background:isOn?"#0d2b1a":"#f3f4f6",color:isOn?"#4ade80":"#888",border:"none",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                      {isOn ? "✅ 노출중" : "노출하기"}
+                    </button>
+                  </div>
+                </div>
+                {isOn && <div style={{background:"#f0fdf4",borderRadius:8,padding:"6px 10px",fontSize:11,color:G.mid,fontWeight:600}}>
+                  🔍 경락 검색에서 이 품목이 상단에 표시됩니다
+                </div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:8}}>로그아웃</button>
+    </div>
+  );
+}
+
 // ── 메인 앱 ──
 function App() {
   var t1 = useState("search"); var tab = t1[0]; var setTab = t1[1];
@@ -639,6 +969,8 @@ function App() {
   var d7 = useState("idle"); var tradeStatus = d7[0]; var setTradeStatus = d7[1];
 
   var m1 = useState(""); var mapRegion = m1[0]; var setMapRegion = m1[1];
+  var l1 = useState(null); var loginUser = l1[0]; var setLoginUser = l1[1];
+  var l2 = useState(false); var showLogin = l2[0]; var setShowLogin = l2[1];
 
   useEffect(function(){
     var cancelled = false;
@@ -769,7 +1101,6 @@ function App() {
                 <div style={{color:"#52b788",fontSize:10,letterSpacing:3,fontWeight:700}}>AGRO CONNECT</div>
                 <div style={{color:"#fff",fontWeight:900,fontSize:20,marginTop:2}}>농작교</div>
                 <div style={{color:"rgba(255,255,255,0.6)",fontSize:10,marginTop:2}}>전국 9개 중앙공영도매시장 · 수수료 없는 공영 중계</div>
-
                 {(status==="ok"||status==="partial") && <div style={{marginTop:6,display:"flex",gap:6,flexWrap:"wrap"}}>
                   <span style={{background:"rgba(74,222,128,0.2)",color:"#4ade80",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px",border:"1px solid rgba(74,222,128,0.3)"}}>
                     🟢 전국 {stats.total}건 · {lastUpdated} 기준
@@ -786,14 +1117,25 @@ function App() {
                   <span style={{background:"rgba(239,68,68,0.2)",color:"#fca5a5",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px"}}>🔴 연결 오류 · 재시도 중</span>
                 </div>}
               </div>
+              {/* 로그인 버튼 */}
+              <div style={{marginTop:4}}>
+                {loginUser
+                  ? <button onClick={function(){setTab("mypage");}} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                      {loginUser.role==="dealer"?"🏪":"🛒"} 마이페이지
+                    </button>
+                  : <button onClick={function(){setShowLogin(true);}} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                      🔐 로그인
+                    </button>
+                }
+              </div>
             </div>
           </div>
 
           {/* 탭 */}
           <div style={{display:"flex",gap:2,paddingBottom:0}}>
-            {[["search","🔍 경락 검색"],["trade","📈 거래실적"],["map","🗺️ 시장 지도"],["guide","📋 이용 안내"]].map(function(t){
+            {[["search","🔍 경락"],["trade","📈 거래실적"],["map","🗺️ 지도"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
               var active = tab===t[0];
-              return <button key={t[0]} onClick={function(){setTab(t[0]);}} style={{flex:1,padding:"10px 0",border:"none",background:active?"rgba(255,255,255,0.15)":"transparent",color:active?"#fff":"rgba(255,255,255,0.55)",fontWeight:active?800:400,fontSize:11,cursor:"pointer",borderBottom:active?"2px solid #52b788":"2px solid transparent",borderRadius:"6px 6px 0 0"}}>
+              return <button key={t[0]} onClick={function(){setTab(t[0]); if(t[0]==="mypage"&&!loginUser) setShowLogin(true);}} style={{flex:1,padding:"10px 0",border:"none",background:active?"rgba(255,255,255,0.15)":"transparent",color:active?"#fff":"rgba(255,255,255,0.55)",fontWeight:active?800:400,fontSize:10,cursor:"pointer",borderBottom:active?"2px solid #52b788":"2px solid transparent",borderRadius:"6px 6px 0 0"}}>
                 {t[1]}
               </button>;
             })}
@@ -1011,7 +1353,27 @@ function App() {
           </div>
         </div>}
 
+        {/* 마이페이지 탭 */}
+        {tab==="mypage" && (
+          loginUser
+            ? loginUser.role==="buyer"
+              ? <BuyerMyPage user={loginUser} onLogout={function(){setLoginUser(null);setTab("search");}}/>
+              : <DealerMyPage user={loginUser} tradeData={tradeData} onLogout={function(){setLoginUser(null);setTab("search");}}/>
+            : <div style={{textAlign:"center",padding:"60px 0"}}>
+                <div style={{fontSize:40,marginBottom:12}}>🔐</div>
+                <div style={{fontWeight:700,fontSize:15,color:"#555",marginBottom:8}}>로그인이 필요합니다</div>
+                <button onClick={function(){setShowLogin(true);}} style={{background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px 28px",fontSize:14,fontWeight:900,cursor:"pointer"}}>로그인하기</button>
+              </div>
+        )}
+
       </div>
+
+      {/* 로그인 모달 */}
+      {showLogin && <LoginModal
+        onLogin={function(user){setLoginUser(user);setShowLogin(false);setTab("mypage");}}
+        onClose={function(){setShowLogin(false);}}
+      />}
+
     </div>
   );
 }
