@@ -360,9 +360,19 @@ function parseCSV(csvText) {
 
 // ── 경락 카드 ──
 function RecordCard(props) {
-  var r = props.record, rank = props.rank;
+  var r = props.record, rank = props.rank, tradeData = props.tradeData || [];
   var isTop = rank === 1;
   var rs = useState(false); var showReviews = rs[0]; var setShowReviews = rs[1];
+  var ts = useState(false); var showTrade = ts[0]; var setShowTrade = ts[1];
+
+  // 노은시장 카드일 때 품목명으로 거래실적 매칭
+  var matchedTrades = [];
+  if(r.market.id === 8 && tradeData.length > 0) {
+    matchedTrades = tradeData.filter(function(t){
+      var t품목 = (t["품목명"]||t["품목"]||"").trim();
+      return t품목 && (t품목.includes(r.itemName) || r.itemName.includes(t품목) || r.fullName.includes(t품목));
+    }).slice(0, 20);
+  }
 
   return (
     <div style={{background:"#fff",borderRadius:16,border:"2px solid "+(isTop?"#4ade80":"#e5e7eb"),overflow:"hidden",boxShadow:isTop?"0 4px 20px rgba(74,222,128,0.15)":"0 2px 8px rgba(0,0,0,0.05)"}}>
@@ -453,8 +463,47 @@ function RecordCard(props) {
           </div>
         )}
 
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:10,color:"#aaa"}}>🕐 {r.date}</div>
+        {/* 노은시장 거래실적 연결 */}
+        {r.market.id === 8 && matchedTrades.length > 0 && (
+          <div style={{marginBottom:8}}>
+            <button onClick={function(){setShowTrade(!showTrade);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:"#2563eb",fontWeight:700,cursor:"pointer"}}>
+              {showTrade ? "▲ 거래실적 접기" : "▼ 오늘 거래실적 보기 ("+matchedTrades.length+"건)"}
+            </button>
+            {showTrade && (
+              <div style={{marginTop:8,overflowX:"auto",borderRadius:10,border:"1px solid #bfdbfe"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:420}}>
+                  <thead>
+                    <tr style={{background:"#1e40af"}}>
+                      {["경매시간","출하자","산지명","등급","수량","단가","금액","낙찰 중도매인"].map(function(h){return(
+                        <th key={h} style={{padding:"6px 7px",color:"#bfdbfe",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
+                      );})}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matchedTrades.map(function(t,i){return(
+                      <tr key={i} style={{background:i%2===0?"#fff":"#eff6ff",borderBottom:"1px solid #e0e7ff"}}>
+                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["경매시간"]||"-"}</td>
+                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333",fontWeight:600}}>{t["출하자"]||"-"}</td>
+                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["산지명"]||"-"}</td>
+                        <td style={{padding:"5px 7px",whiteSpace:"nowrap"}}>
+                          <span style={{background:"#fef9c3",color:"#854d0e",borderRadius:6,padding:"1px 6px",fontWeight:700}}>{t["등급"]||"-"}</span>
+                        </td>
+                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333"}}>{t["수량"]||"-"}</td>
+                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:G.mid,fontWeight:700}}>{t["단가"] ? parseInt(t["단가"]).toLocaleString()+"원" : "-"}</td>
+                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["금액"] ? parseInt(t["금액"]).toLocaleString()+"원" : "-"}</td>
+                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#888"}}>{t["낙찰 중도매인"]||"-"}</td>
+                      </tr>
+                    );})}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {r.market.id === 8 && matchedTrades.length === 0 && tradeData.length > 0 && (
+          <div style={{marginBottom:8,fontSize:11,color:"#aaa"}}>📋 이 품목의 거래실적 없음</div>
+        )}
           <div style={{display:"flex",gap:6}}>
             {r.market.phone
               ? <a href={"tel:"+r.market.phone} style={{background:"#f0fdf4",color:G.mid,border:"1px solid #bbf7d0",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,textDecoration:"none"}}>📞 {r.market.phone}</a>
@@ -582,6 +631,8 @@ function App() {
   var d3 = useState(""); var errMsg = d3[0]; var setErrMsg = d3[1];
   var d4 = useState(null); var lastUpdated = d4[0]; var setLastUpdated = d4[1];
   var d5 = useState(0); var liveCount = d5[0]; var setLiveCount = d5[1];
+  var d6 = useState([]); var tradeData = d6[0]; var setTradeData = d6[1];
+  var d7 = useState("idle"); var tradeStatus = d7[0]; var setTradeStatus = d7[1];
 
   var m1 = useState(""); var mapRegion = m1[0]; var setMapRegion = m1[1];
 
@@ -627,6 +678,52 @@ function App() {
     load();
     var iv = setInterval(load, 60*60*1000);
     return function(){ cancelled=true; clearInterval(iv); };
+  }, []);
+
+  // ── 거래실적 fetch ──
+  useEffect(function(){
+    var cancelled = false;
+    async function loadTrade() {
+      setTradeStatus("loading");
+      try {
+        var res = await fetch("/api/trade");
+        if(!res.ok) throw new Error("거래실적 로드 실패: " + res.status);
+        var csv = await res.text();
+        if(cancelled) return;
+        var lines = csv.trim().split("\n");
+        if(lines.length < 2) { setTradeStatus("empty"); return; }
+        var headers = lines[0].split(",").map(function(h){ return h.trim().replace(/"/g,""); });
+        var rows = [];
+        for(var i = 1; i < lines.length; i++) {
+          var cols = [];
+          var cur = "", inQ = false;
+          for(var j = 0; j < lines[i].length; j++) {
+            var ch = lines[i][j];
+            if(ch==='"'){ inQ=!inQ; continue; }
+            if(ch===','&&!inQ){ cols.push(cur.trim()); cur=""; continue; }
+            cur += ch;
+          }
+          cols.push(cur.trim());
+          if(cols.every(function(c){return !c;})) continue;
+          var row = {};
+          headers.forEach(function(h,idx){ row[h] = (cols[idx]||"").trim(); });
+          // 소계/합계 행 제외
+          var 품목명 = row["품목명"]||row["품목"]||"";
+          if(품목명.includes("소계")||품목명.includes("합계")||!품목명) continue;
+          // 품목명 공백 제거
+          row["품목명"] = 품목명.trim();
+          row["품목"] = (row["품목"]||"").trim();
+          rows.push(row);
+        }
+        setTradeData(rows);
+        setTradeStatus("ok");
+      } catch(e) {
+        if(!cancelled) setTradeStatus("error");
+      }
+    }
+    loadTrade();
+    var iv2 = setInterval(loadTrade, 60*60*1000);
+    return function(){ cancelled=true; clearInterval(iv2); };
   }, []);
 
   var filtered = data.filter(function(r){
@@ -690,9 +787,9 @@ function App() {
 
           {/* 탭 */}
           <div style={{display:"flex",gap:2,paddingBottom:0}}>
-            {[["search","🔍 경락 검색"],["map","🗺️ 시장 지도"],["guide","📋 이용 안내"]].map(function(t){
+            {[["search","🔍 경락 검색"],["trade","📈 거래실적"],["map","🗺️ 시장 지도"],["guide","📋 이용 안내"]].map(function(t){
               var active = tab===t[0];
-              return <button key={t[0]} onClick={function(){setTab(t[0]);}} style={{flex:1,padding:"10px 0",border:"none",background:active?"rgba(255,255,255,0.15)":"transparent",color:active?"#fff":"rgba(255,255,255,0.55)",fontWeight:active?800:400,fontSize:12,cursor:"pointer",borderBottom:active?"2px solid #52b788":"2px solid transparent",borderRadius:"6px 6px 0 0"}}>
+              return <button key={t[0]} onClick={function(){setTab(t[0]);}} style={{flex:1,padding:"10px 0",border:"none",background:active?"rgba(255,255,255,0.15)":"transparent",color:active?"#fff":"rgba(255,255,255,0.55)",fontWeight:active?800:400,fontSize:11,cursor:"pointer",borderBottom:active?"2px solid #52b788":"2px solid transparent",borderRadius:"6px 6px 0 0"}}>
                 {t[1]}
               </button>;
             })}
@@ -781,7 +878,7 @@ function App() {
                 </div>
               : <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   {filtered.slice(0, 100).map(function(r, idx){
-                    return <RecordCard key={r.id} record={r} rank={idx+1}/>;
+                    return <RecordCard key={r.id} record={r} rank={idx+1} tradeData={tradeData}/>;
                   })}
                   {filtered.length > 100 && <div style={{textAlign:"center",padding:"12px",fontSize:12,color:"#888"}}>상위 100건 표시 중 · 검색어로 필터링하세요</div>}
                 </div>
@@ -799,6 +896,68 @@ function App() {
             <div style={{fontSize:13,color:"#888"}}>실시간 경락 데이터 불러오는 중...</div>
           </div>}
 
+        </div>}
+
+        {/* 거래실적 탭 */}
+        {tab==="trade" && <div>
+          <div style={{background:"#fff",borderRadius:16,padding:"12px 16px",marginBottom:12,border:"1px solid #bfdbfe"}}>
+            <div style={{fontWeight:900,fontSize:15,color:"#1e40af"}}>📈 거래실적</div>
+            <div style={{fontSize:11,color:"#888",marginTop:2}}>대전 노은시장 · 당일 거래 데이터 · 발표일 데이터로 자동 교체</div>
+          </div>
+
+          {tradeStatus==="loading" && <div style={{textAlign:"center",padding:"40px 0"}}>
+            <div style={{fontSize:32,marginBottom:10}}>⏳</div>
+            <div style={{fontSize:13,color:"#888"}}>거래실적 불러오는 중...</div>
+          </div>}
+
+          {tradeStatus==="error" && <div style={{textAlign:"center",padding:"40px 0"}}>
+            <div style={{fontSize:32,marginBottom:10}}>⚠️</div>
+            <div style={{fontSize:13,color:"#888"}}>거래실적을 불러오지 못했습니다</div>
+          </div>}
+
+          {tradeStatus==="ok" && tradeData.length > 0 && (function(){
+            var COLS = ["경매일자","경매시간","출하자","산지명","품목명","등급","수량","단가","금액","낙찰 중도매인"];
+            return (
+              <div>
+                <div style={{fontSize:12,color:"#888",marginBottom:10}}>총 <b style={{color:"#1e40af"}}>{tradeData.length}</b>건</div>
+                <div style={{overflowX:"auto",borderRadius:12,border:"1px solid #bfdbfe",boxShadow:"0 2px 8px rgba(30,64,175,0.06)"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:560}}>
+                    <thead>
+                      <tr style={{background:"#1e3a8a"}}>
+                        {COLS.map(function(h){return(
+                          <th key={h} style={{padding:"9px 8px",color:"#bfdbfe",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
+                        );})}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tradeData.map(function(row,i){return(
+                        <tr key={i} style={{background:i%2===0?"#fff":"#eff6ff",borderBottom:"1px solid #e0e7ff"}}>
+                          {COLS.map(function(h){
+                            var val = (row[h]||"-").trim();
+                            var isPrice = h==="단가"||h==="금액";
+                            var isGrade = h==="등급";
+                            if(isPrice && val!=="-") val = parseInt(val.replace(/,/g,"")).toLocaleString()+"원";
+                            return (
+                              <td key={h} style={{padding:"7px 8px",whiteSpace:"nowrap",
+                                color: isPrice ? G.mid : "#333",
+                                fontWeight: isPrice ? 700 : 400}}>
+                                {isGrade && val!=="-"
+                                  ? <span style={{background:"#fef9c3",color:"#854d0e",borderRadius:6,padding:"1px 6px",fontWeight:700}}>{val}</span>
+                                  : val}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );})}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{marginTop:10,fontSize:11,color:"#aaa",textAlign:"center"}}>
+                  ※ 낙찰 중도매인 번호는 가번호로 표시됩니다 · 발표일에 실제 데이터로 교체 예정
+                </div>
+              </div>
+            );
+          })()}
         </div>}
 
         {/* 지도 탭 */}
