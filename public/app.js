@@ -504,7 +504,8 @@ function RecordCard(props) {
         {r.market.id === 8 && matchedTrades.length === 0 && tradeData.length > 0 && (
           <div style={{marginBottom:8,fontSize:11,color:"#aaa"}}>📋 이 품목의 거래실적 없음</div>
         )}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:10,color:"#aaa"}}>🕐 {r.date}</div>
           <div style={{display:"flex",gap:6}}>
             {r.market.phone
@@ -514,7 +515,7 @@ function RecordCard(props) {
             <button style={{background:G.mid,color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}} onClick={function(){alert("거래 문의는 해당 도매시장 법인("+r.corp+")에 직접 연락하세요.\n"+(r.market.phone?"📞 "+r.market.phone:"📞 연락처 등록 예정")+"\n🏛️ "+r.market.name);}}>거래하기</button>
           </div>
         </div>
-        </div>
+
       </div>
     </div>
   );
