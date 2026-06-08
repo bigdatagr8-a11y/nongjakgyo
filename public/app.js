@@ -366,8 +366,10 @@ function ChatModal(props) {
   var inp = useState(""); var input = inp[0]; var setInput = inp[1];
   var bottomRef = useRef(null);
 
-  var bidderName = (tradeRow && tradeRow["낙찰 중도매인"]) || record.bidder || "중도매인";
-  var bidderPhone = (tradeRow && tradeRow["중도매인 연락처"]) || record.shipperPhone || "";
+  var dealerNo = String((tradeRow && tradeRow["낙찰 중도매인"]) || record.bidder || "").trim();
+  var dealerLookup = getDealerInfo(dealerNo);
+  var bidderName = dealerLookup.name;
+  var bidderPhone = (tradeRow && tradeRow["중도매인 연락처"]) || dealerLookup.phone || "";
   var itemName = record.fullName || record.itemName;
   var origin = record.origin || "";
   var price = record.price || 0;
@@ -595,41 +597,73 @@ function RecordCard(props) {
           </div>
         )}
 
-        {/* 노은시장 거래실적 연결 */}
+        {/* 노은시장 거래실적 연결 - 중도매인별 */}
         {r.market.id === 8 && matchedTrades.length > 0 && (
           <div style={{marginBottom:8}}>
             <button onClick={function(){setShowTrade(!showTrade);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:"#2563eb",fontWeight:700,cursor:"pointer"}}>
               {showTrade ? "▲ 거래실적 접기" : "▼ 오늘 거래실적 보기 ("+matchedTrades.length+"건)"}
             </button>
-            {showTrade && (
-              <div style={{marginTop:8,overflowX:"auto",borderRadius:10,border:"1px solid #bfdbfe"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:420}}>
-                  <thead>
-                    <tr style={{background:"#1e40af"}}>
-                      {["경매시간","출하자","산지명","등급","수량","단가","금액","낙찰 중도매인"].map(function(h){return(
-                        <th key={h} style={{padding:"6px 7px",color:"#bfdbfe",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
-                      );})}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {matchedTrades.map(function(t,i){return(
-                      <tr key={i} style={{background:i%2===0?"#fff":"#eff6ff",borderBottom:"1px solid #e0e7ff"}}>
-                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["경매시간"]||"-"}</td>
-                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333",fontWeight:600}}>{t["출하자"]||"-"}</td>
-                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["산지명"]||"-"}</td>
-                        <td style={{padding:"5px 7px",whiteSpace:"nowrap"}}>
-                          <span style={{background:"#fef9c3",color:"#854d0e",borderRadius:6,padding:"1px 6px",fontWeight:700}}>{t["등급"]||"-"}</span>
-                        </td>
-                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333"}}>{t["수량"]||"-"}</td>
-                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:G.mid,fontWeight:700}}>{t["단가"] ? parseInt(t["단가"]).toLocaleString()+"원" : "-"}</td>
-                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["금액"] ? parseInt(t["금액"]).toLocaleString()+"원" : "-"}</td>
-                        <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#888"}}>{t["낙찰 중도매인"]||"-"}</td>
-                      </tr>
-                    );})}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {showTrade && (function(){
+              // 중도매인별 그룹화
+              var dealerGroups = {};
+              matchedTrades.forEach(function(t){
+                var no = String(t["낙찰 중도매인"]||"").trim();
+                if(!dealerGroups[no]) dealerGroups[no] = [];
+                dealerGroups[no].push(t);
+              });
+              return (
+                <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:10}}>
+                  {Object.keys(dealerGroups).map(function(no){
+                    var trades = dealerGroups[no];
+                    var info = getDealerInfo(no);
+                    var avgPrice = Math.round(trades.reduce(function(s,t){return s+(parseInt(t["단가"])||0);},0)/trades.length);
+                    var totalQty = trades.reduce(function(s,t){return s+(parseInt(t["수량"])||0);},0);
+                    return (
+                      <div key={no} style={{border:"1px solid #bfdbfe",borderRadius:12,overflow:"hidden"}}>
+                        {/* 중도매인 헤더 */}
+                        <div style={{background:"#1e3a8a",padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <div>
+                            <span style={{color:"#fff",fontWeight:700,fontSize:12}}>{info.name}</span>
+                            <span style={{color:"#93c5fd",fontSize:10,marginLeft:6}}>#{no}</span>
+                            {info.phone && <a href={"tel:"+info.phone} style={{color:"#86efac",fontSize:10,marginLeft:8,textDecoration:"none"}}>📞 {info.phone}</a>}
+                          </div>
+                          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                            <span style={{color:"#bfdbfe",fontSize:10}}>{trades.length}건 · 평균 {avgPrice.toLocaleString()}원</span>
+                            <button onClick={function(){setShowChat(true); window._chatDealer={no:no,tradeRow:trades[0]};}} style={{background:"#2563eb",color:"#fff",border:"none",borderRadius:20,padding:"4px 10px",fontSize:10,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
+                          </div>
+                        </div>
+                        {/* 거래 내역 */}
+                        <div style={{overflowX:"auto"}}>
+                          <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:360}}>
+                            <thead>
+                              <tr style={{background:"#eff6ff"}}>
+                                {["경매시간","산지명","등급","수량","단가","금액"].map(function(h){return(
+                                  <th key={h} style={{padding:"5px 7px",color:"#1e40af",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
+                                );})}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {trades.map(function(t,i){return(
+                                <tr key={i} style={{background:i%2===0?"#fff":"#f8faff",borderBottom:"1px solid #e0e7ff"}}>
+                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["경매시간"]||"-"}</td>
+                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333"}}>{t["산지명"]||"-"}</td>
+                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap"}}>
+                                    <span style={{background:"#fef9c3",color:"#854d0e",borderRadius:6,padding:"1px 5px",fontWeight:700}}>{(t["등급"]||"-").trim()}</span>
+                                  </td>
+                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333"}}>{t["수량"]||"-"}</td>
+                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:G.mid,fontWeight:700}}>{t["단가"]?parseInt(t["단가"]).toLocaleString()+"원":"-"}</td>
+                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["금액"]?parseInt(t["금액"]).toLocaleString()+"원":"-"}</td>
+                                </tr>
+                              );})}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -644,12 +678,11 @@ function RecordCard(props) {
               ? <a href={"tel:"+r.market.phone} style={{background:"#f0fdf4",color:G.mid,border:"1px solid #bbf7d0",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,textDecoration:"none"}}>📞 {r.market.phone}</a>
               : <span style={{background:"#f3f4f6",color:"#bbb",border:"1px solid #e5e7eb",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700}}>📞 번호 입력 예정</span>
             }
-            {r.market.id === 8 && <button onClick={function(){setShowChat(true);}} style={{background:"#1e40af",color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>}
             <button style={{background:G.mid,color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}} onClick={function(){alert("거래 문의는 해당 도매시장 법인("+r.corp+")에 직접 연락하세요.\n"+(r.market.phone?"📞 "+r.market.phone:"📞 연락처 등록 예정")+"\n🏛️ "+r.market.name);}}>거래하기</button>
           </div>
         </div>
 
-        {showChat && <ChatModal record={r} tradeRow={chatTradeRow} onClose={function(){setShowChat(false);}}/>}
+        {showChat && <ChatModal record={r} tradeRow={window._chatDealer ? window._chatDealer.tradeRow : chatTradeRow} onClose={function(){setShowChat(false); window._chatDealer=null;}}/>}
 
       </div>
     </div>
@@ -754,7 +787,62 @@ function MarketMap(props) {
   );
 }
 
-// ── 가상 계정 ──
+// ── 중도매인 번호 → 이름/연락처 매핑 (중앙청과 과일부) ──
+var DEALER_INFO = {
+  "11":  {name:"하귀봉", phone:"010-9297-5879"},
+  "18":  {name:"홍경희", phone:"010-8809-4956"},
+  "23":  {name:"이인희", phone:"010-6647-9790"},
+  "52":  {name:"김준선", phone:"010-8458-9007"},
+  "55":  {name:"최기원", phone:"010-4812-4151"},
+  "65":  {name:"윤영숙", phone:"010-2413-4151"},
+  "87":  {name:"배회정", phone:"010-4248-7895"},
+  "102": {name:"권용만", phone:"010-9144-3625"},
+  "103": {name:"채나온", phone:"010-7172-0607"},
+  "109": {name:"이민형", phone:"010-9446-7388"},
+  "144": {name:"박윤수", phone:"010-4153-7757"},
+  "152": {name:"이종민", phone:"010-4434-9202"},
+  "153": {name:"김재성", phone:"010-3451-1969"},
+  "154": {name:"김자년", phone:"010-5451-6007"},
+  "155": {name:"전협",   phone:"010-3227-7077"},
+  "163": {name:"안미숙", phone:"010-5434-1513"},
+  "165": {name:"황규석", phone:"010-5453-5380"},
+  "166": {name:"차인국", phone:"010-5406-1863"},
+  "167": {name:"백은심", phone:"010-5402-1660"},
+  "174": {name:"박대영", phone:"010-9401-4381"},
+  "176": {name:"정봉규", phone:"010-9411-7211"},
+  "177": {name:"김도희", phone:"010-7569-5454"},
+  "180": {name:"이진영", phone:"010-7406-4956"},
+  "181": {name:"최창식", phone:"010-5433-7185"},
+  "182": {name:"한상범", phone:"010-4420-4100"},
+  "186": {name:"김은미", phone:"010-6408-4459"},
+  "188": {name:"김연풍", phone:"010-2423-7371"},
+  "195": {name:"김명용", phone:"010-8818-7416"},
+  "197": {name:"문기연", phone:"010-4412-2672"},
+  "198": {name:"박미서", phone:"010-7742-0101"},
+  "199": {name:"최종철", phone:"010-5406-0952"},
+  "200": {name:"김복호", phone:"010-3774-7775"},
+  "203": {name:"서종원", phone:"010-6220-4849"},
+  "207": {name:"배순심", phone:"010-6624-9106"},
+  "209": {name:"김동준", phone:"010-8425-3724"},
+  "233": {name:"이청수", phone:"010-5466-9790"},
+  "295": {name:"김지원", phone:"010-5530-7744"},
+  "300": {name:"권경진", phone:"010-2250-3117"},
+  "303": {name:"김은옥", phone:"010-6403-4849"},
+  "304": {name:"김종욱", phone:"010-3431-1544"},
+  "309": {name:"김선계", phone:"010-8803-3724"},
+  "317": {name:"고명노", phone:"010-5423-0260"},
+  "342": {name:"박찬웅", phone:"010-4852-2346"},
+  "346": {name:"김형규", phone:"010-6342-5608"},
+  "351": {name:"이근학", phone:"010-3896-6172"},
+  "352": {name:"김철수", phone:"010-5508-9756"},
+  "354": {name:"정종헌", phone:"010-7187-6969"},
+  "365": {name:"신명숙", phone:"010-9219-8768"},
+};
+
+function getDealerInfo(no) {
+  var key = String(no||"").trim();
+  return DEALER_INFO[key] || {name:"중도매인 #"+key, phone:""};
+}
 var ACCOUNTS = {
   buyer:  { pw:"1234", role:"buyer",  name:"김소매",   biz:"소매상회",     bizNo:"123-45-67890", phone:"010-1234-5678" },
   dealer: { pw:"1234", role:"dealer", name:"중도매인",  dealerNo:"45" },
