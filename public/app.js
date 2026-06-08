@@ -358,6 +358,124 @@ function parseCSV(csvText) {
   return records;
 }
 
+// ── 중도매인 자동 응답 엔진 ──
+function generateDealerReply(msg, ctx) {
+  var m = msg.replace(/\s/g,"").toLowerCase();
+  var item = ctx.itemName || "상품";
+  var origin = ctx.origin || "국산";
+  var price = ctx.price || 0;
+  var grade = ctx.grade || "";
+  var qty = ctx.qty || 0;
+  var unit = ctx.unit || "개";
+  var name = ctx.bidderName || "저";
+  var discountPrice = Math.round((price * 0.95) / 100) * 100;
+  var minQty = unit==="box" ? 5 : unit==="kg" ? 20 : 10;
+
+  // 키워드 매칭
+  if(m.includes("가격") || m.includes("얼마") || m.includes("단가") || m.includes("협의") || m.includes("할인") || m.includes("깎")) {
+    var replies = [
+      "현재 낙찰가가 "+price.toLocaleString()+"원/"+unit+"인데요, "+minQty+unit+" 이상 구매하시면 "+discountPrice.toLocaleString()+"원으로 드릴 수 있습니다. 대량 구매는 별도 협의 가능해요.",
+      "솔직히 말씀드리면 "+price.toLocaleString()+"원이 오늘 경매 최저가 수준이에요. 근데 단골 거래처시면 "+discountPrice.toLocaleString()+"원까지는 조율 가능합니다.",
+      "오늘 물량이 많아서 빠른 거래 원하시면 좀 맞춰드릴 수 있어요. 몇 "+unit+" 생각하고 계세요?",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("품질") || m.includes("신선") || m.includes("상태") || m.includes("좋아") || m.includes("맛") || m.includes("당도")) {
+    var replies = [
+      origin+"에서 오늘 새벽 직송 들어온 거라 신선도는 자신 있습니다. "+(grade?"등급은 "+grade+"으로 선별 잘 된 물건이에요.":"선별도 꼼꼼히 했어요.")+' 직접 보시겠어요?',
+      "저 "+name+" 이름 걸고 말씀드리는데, 오늘 "+item+" 상태 정말 좋습니다. "+origin+" 산지에서 바로 올라온 거라 신선도 걱정 안 하셔도 돼요.",
+      "요즘 "+item+" 시세가 올라서 품질 좋은 게 귀한데, 오늘 물건은 "+(grade||"상품")+" 위주라 소매 내놓기 딱 좋아요. 반품 걱정 없으실 거예요.",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("수량") || m.includes("몇") || m.includes("최소") || m.includes("얼마나") || m.includes("박스") || m.includes("키로")) {
+    var replies = [
+      "최소 "+minQty+unit+"부터 거래 가능하고요, 현재 가용 물량은 "+qty+unit+" 정도 됩니다. 전량 가져가시면 가격 더 맞춰드릴게요.",
+      "오늘 총 "+qty+unit+" 확보했는데요, 최소 "+minQty+unit+" 이상이면 거래 가능합니다. 얼마나 필요하세요?",
+      "지금 "+qty+unit+" 있어요. 소량도 되는데 "+minQty+unit+" 이하면 단가가 그대로라 사실 "+minQty+unit+" 이상이 이득이에요.",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("배송") || m.includes("언제") || m.includes("납품") || m.includes("배달") || m.includes("시간") || m.includes("오늘")) {
+    var replies = [
+      "오늘 오전 중 결정하시면 내일 새벽 배송 가능합니다. 대전 시내는 당일 오후도 가능해요.",
+      "결제 확인 후 익일 새벽 출하 기준이에요. 급하시면 오늘 오후 직접 픽업도 가능하고요.",
+      "보통 오전 주문이면 다음날 새벽 시장 시간에 맞춰 납품해 드려요. 위치 어디세요?",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("산지") || m.includes("어디") || m.includes("원산지") || m.includes("출하")) {
+    var replies = [
+      origin+"산입니다. 오늘 새벽 경매 전에 직접 확인한 물건이에요. 원산지 증명서 필요하시면 드릴 수 있어요.",
+      ""+origin+" 직출하예요. 중간 유통 없이 바로 올라온 거라 신선도가 달라요.",
+      ""+origin+" 농가에서 직접 출하한 물건입니다. 이 산지 "+item+"이 요즘 제일 맛있는 시기예요.",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("결제") || m.includes("계좌") || m.includes("입금") || m.includes("현금") || m.includes("카드") || m.includes("세금계산서") || m.includes("세금")) {
+    var replies = [
+      "현금, 계좌이체 다 됩니다. 세금계산서도 발행 가능하고요. 사업자 등록번호 알려주시면 처리해 드릴게요.",
+      "계좌이체 기준이고요, 단골 거래처는 외상도 가능해요. 세금계산서 필요하시면 말씀해 주세요.",
+      "결제는 선불 기준인데요, 처음 거래시는 50% 선납 후 잔금 납품 시 지불 방식으로 하고 있어요.",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("반품") || m.includes("교환") || m.includes("불량") || m.includes("파손") || m.includes("문제")) {
+    var replies = [
+      "납품 후 24시간 이내 불량 확인되시면 교환 또는 환불 처리해 드립니다. 사진 찍어서 보내주시면 바로 확인할게요.",
+      "물건 상태 자신 있어서 반품 거의 없는데요, 혹시 문제 생기면 책임지고 처리해 드립니다. 걱정 마세요.",
+      "도착 즉시 확인해 주세요. 파손이나 불량이 있으면 전화 주시면 바로 처리합니다. 연락처 저장해 두세요.",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("처음") || m.includes("처음이") || m.includes("신규") || m.includes("첫") || m.includes("소개")) {
+    var replies = [
+      "처음 거래시는 샘플 먼저 보내드릴 수 있어요. 한 "+Math.max(1,Math.floor(minQty/2))+unit+" 정도 받아보시고 마음에 드시면 정식 거래 하시죠.",
+      "반갑습니다! 저 노은시장 10년째 하고 있어요. 첫 거래라 걱정되시면 소량부터 시작하셔도 됩니다. 신뢰 쌓으면 조건 더 좋게 드릴게요.",
+      "처음이시면 일단 "+minQty+unit+" 소량으로 해보시고요, 품질 확인하신 다음에 거래 이어가시면 어떨까요?",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("단골") || m.includes("계속") || m.includes("정기") || m.includes("매주") || m.includes("매달")) {
+    var replies = [
+      "정기 거래면 당연히 가격 조율 가능하죠. 주 단위로 하시면 "+discountPrice.toLocaleString()+"원 고정으로 드릴 수 있어요.",
+      "단골 거래처는 다르게 모십니다. 주문량 고정해 주시면 물량 우선 확보해 드리고 가격도 맞춰드려요.",
+      "정기 거래 환영합니다! 계약서 쓰는 건 아니고 구두로 하는 거라 편하게 하시면 돼요. 한번 해보시죠.",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("경쟁") || m.includes("다른") || m.includes("타업체") || m.includes("싸게") || m.includes("더싸")) {
+    var replies = [
+      "다른 데서 더 싸게 구하셨으면 거기서 사시는 게 맞죠. 근데 저는 품질로 승부해요. 한번 써보시면 알 거예요.",
+      "가격만 보시면 맞추기 어려울 수 있어요. 근데 신선도나 선별 상태 비교해 보시면 왜 이 가격인지 아실 겁니다.",
+      "오늘 낙찰가 기준이라 이게 최저예요. 더 낮으면 솔직히 상품 상태를 의심해 보셔야 해요.",
+    ];
+    return replies[Math.floor(Math.random()*replies.length)];
+  }
+  if(m.includes("안녕") || m.includes("반가") || m.includes("처음뵙")) {
+    return "네 안녕하세요! "+item+" 관심 가져주셔서 감사합니다. "+origin+"산 오늘 경매 물건인데요, 궁금하신 거 편하게 물어보세요.";
+  }
+  if(m.includes("감사") || m.includes("고마") || m.includes("수고")) {
+    return "별말씀을요. 좋은 거래 하시길 바랍니다. 결정되시면 연락 주세요!";
+  }
+  if(m.includes("알겠") || m.includes("확인") || m.includes("네") || m.includes("좋아요") || m.includes("ㅇㅋ")) {
+    return "네, 좋습니다. 추가로 궁금하신 거 있으시면 언제든지 물어보세요. 빠르게 처리해 드릴게요.";
+  }
+  if(m.includes("생각") || m.includes("고민") || m.includes("알아보고")) {
+    return "네, 천천히 생각해 보세요. 오늘 물량 한정이라 결정하시면 빨리 연락 주시고요. 기다리겠습니다.";
+  }
+
+  // 기본 응답 (랜덤)
+  var defaults = [
+    "말씀하신 내용 확인했는데요, 저희 "+item+"은 "+origin+"산 직출하라 믿을 수 있어요. 구체적으로 어떤 부분이 궁금하세요?",
+    "네, 지금 "+item+" "+qty+unit+" 보유하고 있고요. 가격이나 조건 더 궁금한 게 있으시면 편하게 물어보세요.",
+    "저도 빠른 거래 선호합니다. 오늘 결정하시면 바로 진행 가능해요. 어떻게 생각하세요?",
+    ""+item+" 관련해서 더 자세히 말씀드릴까요? 산지, 가격, 배송 중 어떤 부분이 제일 중요하세요?",
+    "좋은 물건 소개해 드리고 싶어서요. 한번 시범 거래해 보시면 후회 없으실 거예요.",
+  ];
+  return defaults[Math.floor(Math.random()*defaults.length)];
+}
+
 // ── 중도매인 채팅 모달 ──
 function ChatModal(props) {
   var onClose = props.onClose, record = props.record, tradeRow = props.tradeRow;
@@ -388,7 +506,7 @@ function ChatModal(props) {
     if(bottomRef.current) bottomRef.current.scrollIntoView({behavior:"smooth"});
   }, [messages]);
 
-  async function sendMessage() {
+  function sendMessage() {
     var text = input.trim();
     if(!text || isLoading) return;
     setInput("");
@@ -396,26 +514,15 @@ function ChatModal(props) {
     setMessages(newMessages);
     setIsLoading(true);
 
-    try {
-      var systemPrompt = "당신은 대전 노은시장의 중도매인 "+bidderName+"입니다. 소매상과 거래 협의 중입니다.\n\n현재 취급 품목 정보:\n- 품목: "+itemName+"\n- 산지: "+(origin||"국산")+"\n- 낙찰가: "+price.toLocaleString()+"원/"+record.unit+"\n- 등급: "+(grade||"-")+"\n- 수량: "+qty+record.unit+"\n\n실제 중도매인처럼 자연스럽고 친근하게 대화하세요. 가격 협의, 품질, 배송, 거래 조건 등에 대해 구체적으로 답변하세요. 한국어로만 답변하고 2-3문장으로 간결하게.";
-
-      var res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
-          system: systemPrompt,
-          messages: newMessages.map(function(m){ return {role:m.role==="assistant"?"assistant":"user", content:m.text}; })
-        })
+    // 0.8초 딜레이로 실제 타이핑하는 느낌
+    setTimeout(function() {
+      var reply = generateDealerReply(text, {
+        itemName: itemName, origin: origin, price: price,
+        grade: grade, qty: qty, unit: record.unit, bidderName: bidderName,
       });
-      var data = await res.json();
-      var reply = data.content && data.content[0] ? data.content[0].text : "잠시 후 다시 시도해주세요.";
       setMessages(newMessages.concat([{role:"assistant", text:reply}]));
-    } catch(e) {
-      setMessages(newMessages.concat([{role:"assistant", text:"연결이 원활하지 않습니다. 직접 연락 부탁드립니다."}]));
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    }, 600 + Math.random()*800);
   }
 
   return (
