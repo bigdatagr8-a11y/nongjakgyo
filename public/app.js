@@ -1179,8 +1179,6 @@ function BuyerMyPage(props) {
           {num:"2", label:"알림음 2"},
           {num:"3", label:"알림음 3"},
           {num:"4", label:"알림음 4"},
-          {num:"3", label:"알림음 3"},
-          {num:"4", label:"알림음 4"},
         ].map(function(s){
           var selected = alarmSound === s.num;
           return (
@@ -1304,6 +1302,8 @@ function DealerMyPage(props) {
         {[
           {num:"1", label:"알림음 1"},
           {num:"2", label:"알림음 2"},
+          {num:"3", label:"알림음 3"},
+          {num:"4", label:"알림음 4"},
         ].map(function(s){
           var selected = alarmSound === s.num;
           return (
