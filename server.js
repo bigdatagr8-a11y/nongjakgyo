@@ -7,9 +7,9 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const SHEET_ID_AUCTION = "1K41TJcxgJdttUCaDsiqTBB7aoJWtdQkJre5RC2vlUZc"; // 경락 데이터
-const SHEET_ID_TRADE   = "1ZgzcDBY3RIaBO5p2riY7EPAiM_ULhWhugUw3Ax2jAB0"; // 거래실적
+const SHEET_ID_TRADE   = "12hoIYD09CXIGW7nWIwhUQG8-EozrYrGjvJVW2kl8C_U"; // 거래실적
 const GID_AUCTION = "0";
-const GID_TRADE   = "68871300";
+const GID_TRADE   = "802017948";
 
 app.use(cors());
 app.use(express.json());
