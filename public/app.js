@@ -1025,7 +1025,7 @@ function BuyerMyPage(props) {
   var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
 
   function playPreview(num) {
-    try { var a = new Audio("/sounds/"+num+".wav"); a.play(); } catch(e){}
+    try { var names = {"1":"작교1.wav","2":"작교2.wav"}; var a = new Audio("/sounds/"+names[num]); a.play(); } catch(e){}
   }
 
   function save() {
