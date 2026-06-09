@@ -1381,7 +1381,7 @@ function App() {
         // 완전 동일한 행 중복 제거 (같은 시장+품목+가격+수량+산지)
         var seen = {};
         var combined = allRows.filter(function(r){
-          var key = r.market.id+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
+          var key = r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
           if(seen[key]) return false;
           seen[key] = true;
           return true;
@@ -1414,7 +1414,7 @@ function App() {
         var rows = parseCSV(csv);
         var seen = {};
         var deduped = rows.filter(function(r){
-          var key = r.market.id+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
+          var key = r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
           if(seen[key]) return false;
           seen[key] = true;
           return true;
