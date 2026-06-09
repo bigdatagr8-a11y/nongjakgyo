@@ -1459,13 +1459,18 @@ function App() {
     return function(){ cancelled=true; clearInterval(iv3); };
   }, []);
 
+  // 시트에서 실제 존재하는 날짜 중 가장 최신 2개 추출
+  var allDates = Array.from(new Set(data.map(function(r){return r.date;}).filter(Boolean))).sort();
+  var latestDate = allDates[allDates.length-1] || TODAY;
+  var prevDate = allDates[allDates.length-2] || YESTERDAY;
+
   var filtered = data.filter(function(r){
     if(filterCategory && r.category !== filterCategory) return false;
     if(filterItem && r.itemName !== filterItem) return false;
     if(filterMarket && r.market.name !== filterMarket) return false;
     if(filterRegion && r.market.region !== filterRegion) return false;
     if(keyword && !r.fullName.includes(keyword) && !r.market.name.includes(keyword) && !r.corp.includes(keyword) && !r.origin.includes(keyword)) return false;
-    var targetDate = dateFilter === "yesterday" ? YESTERDAY : TODAY;
+    var targetDate = dateFilter === "yesterday" ? prevDate : latestDate;
     if(r.date && r.date !== targetDate) return false;
     return true;
   }).sort(function(a,b){
@@ -1611,7 +1616,7 @@ function App() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontWeight:800,fontSize:14,color:"#0d1f15"}}>
                 {filterItem||keyword||filterRegion ? (filterItem||keyword||filterRegion) : "전체 품목"} 검색결과 <span style={{color:G.mid}}>{filtered.length}건</span>
-                <span style={{fontSize:11,color:"#aaa",fontWeight:400,marginLeft:6}}>({dateFilter==="yesterday"?YESTERDAY:TODAY})</span>
+                <span style={{fontSize:11,color:"#aaa",fontWeight:400,marginLeft:6}}>({dateFilter==="yesterday"?prevDate:latestDate})</span>
               </div>
             </div>
 
