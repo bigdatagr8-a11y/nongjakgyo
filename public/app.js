@@ -321,9 +321,9 @@ function parseCSV(csvText) {
     var itemName = cols[3]||"";
     var variety  = cols[4]||"";
     var origin   = cols[5]||"";
-    var qty      = parseInt(cols[6])||0;
+    var qty      = parseInt((cols[6]||"").replace(/,/g,""))||0;
     var unit     = cols[7]||"";
-    var price    = parseInt(cols[8])||0;
+    var price    = parseInt((cols[8]||"").replace(/,/g,""))||0;
 
     if(!itemName || !price) continue;
 
@@ -481,6 +481,7 @@ function generateDealerReply(msg, ctx) {
 // ── 중도매인 채팅 모달 ──
 function ChatModal(props) {
   var onClose = props.onClose, record = props.record, tradeRow = props.tradeRow;
+  var chatType = (window._chatDealer && window._chatDealer.chatType) || "chat";
   var ms = useState([]); var messages = ms[0]; var setMessages = ms[1];
   var is = useState(false); var isLoading = is[0]; var setIsLoading = is[1];
   var inp = useState(""); var input = inp[0]; var setInput = inp[1];
@@ -490,18 +491,30 @@ function ChatModal(props) {
   var dealerLookup = getDealerInfo(dealerNo);
   var bidderName = dealerLookup.name;
   var bidderPhone = (tradeRow && tradeRow["중도매인 연락처"]) || dealerLookup.phone || "";
-  var itemName = record.fullName || record.itemName;
-  var origin = record.origin || "";
-  var price = record.price || 0;
+  var itemName = (tradeRow && tradeRow["품목명"]) || record.fullName || record.itemName;
+  var origin = (tradeRow && tradeRow["산지명"]) || record.origin || "";
+  var price = parseInt((tradeRow && tradeRow["단가"]) || record.price) || 0;
   var grade = (tradeRow && tradeRow["등급"]) || record.grade || "";
   var qty = (tradeRow && tradeRow["수량"]) || record.qty || "";
+  var unit = record.unit || "개";
 
-  // 첫 인사 메시지
+  // 첫 인사 메시지 - 타입별 분기
   useEffect(function(){
-    setMessages([{
-      role:"assistant",
-      text:"안녕하세요! 저는 대전 노은시장 중도매인 "+bidderName+"입니다. 오늘 "+itemName+(origin?" ("+origin+"산)":"")+" 경매에 참여했습니다. 궁금하신 점 있으시면 말씀해 주세요!"
-    }]);
+    var initMsg = "";
+    if(chatType === "buy") {
+      initMsg = "안녕하세요! 저는 대전 노은시장 중도매인 "+bidderName+"입니다. "
+        +itemName+(origin?" ("+origin+"산)":"")+" "+grade+"등급 구매 문의 주셨군요! "
+        +"오늘 낙찰가는 "+price.toLocaleString()+"원/"+unit+", 수량은 "+qty+unit+" 입니다. "
+        +"어느 정도 물량 필요하신가요?";
+    } else if(chatType === "inquiry") {
+      initMsg = "안녕하세요! 저는 대전 노은시장 중도매인 "+bidderName+"입니다. "
+        +itemName+(origin?" ("+origin+"산)":"")+" 상품 문의 주셨군요! "
+        +(grade?"현재 등급은 "+grade+"등급이며, ":"")
+        +"산지 품질이나 재고 관련해서 궁금하신 점 말씀해 주세요.";
+    } else {
+      initMsg = "안녕하세요! 저는 대전 노은시장 중도매인 "+bidderName+"입니다. 오늘 "+itemName+(origin?" ("+origin+"산)":"")+" 경매에 참여했습니다. 궁금하신 점 있으시면 말씀해 주세요!";
+    }
+    setMessages([{role:"assistant", text:initMsg}]);
   }, []);
 
   useEffect(function(){
@@ -535,12 +548,14 @@ function ChatModal(props) {
         <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:"20px 20px 0 0",padding:"14px 16px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
-              <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>중도매인 채팅</div>
+              <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>
+                {chatType==="buy"?"🛒 구매 문의":chatType==="inquiry"?"❓ 상품 문의":"💬 중도매인 채팅"}
+              </div>
               <div style={{color:"#fff",fontWeight:800,fontSize:15,marginTop:2}}>
                 {bidderName} <span style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:400}}>· 대전 노은시장</span>
               </div>
-              <div style={{display:"flex",gap:8,marginTop:4,alignItems:"center"}}>
-                <span style={{background:"rgba(74,222,128,0.2)",color:"#4ade80",fontSize:10,borderRadius:20,padding:"2px 8px"}}>{itemName} {grade&&"· "+grade+"등급"}</span>
+              <div style={{display:"flex",gap:8,marginTop:4,alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{background:"rgba(74,222,128,0.2)",color:"#4ade80",fontSize:10,borderRadius:20,padding:"2px 8px"}}>{itemName}{grade?" · "+grade+"등급":""}{price?" · "+price.toLocaleString()+"원":""}</span>
                 {bidderPhone && <a href={"tel:"+bidderPhone} style={{color:"#86efac",fontSize:10,textDecoration:"none"}}>📞 {bidderPhone}</a>}
                 {!bidderPhone && <span style={{color:"rgba(255,255,255,0.4)",fontSize:10}}>📞 연락처 등록 예정</span>}
               </div>
@@ -602,10 +617,14 @@ function ChatModal(props) {
 // ── 경락 카드 ──
 function RecordCard(props) {
   var r = props.record, rank = props.rank, tradeData = props.tradeData || [];
+  var purchases = props.purchases || {}, setPurchases = props.setPurchases || function(){};
+  var loginUser = props.loginUser;
   var isTop = rank === 1;
   var rs = useState(false); var showReviews = rs[0]; var setShowReviews = rs[1];
   var ts = useState(false); var showTrade = ts[0]; var setShowTrade = ts[1];
   var cs = useState(false); var showChat = cs[0]; var setShowChat = cs[1];
+  var pm = useState(null); var payModal = pm[0]; var setPayModal = pm[1]; // {dealerNo, tradeRow}
+  var pp = useState(false); var payDone = pp[0]; var setPayDone = pp[1];
 
   // 노은시장 카드일 때 품목명으로 거래실적 매칭
   var matchedTrades = [];
@@ -746,7 +765,7 @@ function RecordCard(props) {
                           <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:360}}>
                             <thead>
                               <tr style={{background:"#eff6ff"}}>
-                                {["경매시간","산지명","등급","수량","단가","금액"].map(function(h){return(
+                                {["경매시간","산지명","등급","수량","단가","금액","문의"].map(function(h){return(
                                   <th key={h} style={{padding:"5px 7px",color:"#1e40af",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
                                 );})}
                               </tr>
@@ -762,6 +781,27 @@ function RecordCard(props) {
                                   <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333"}}>{t["수량"]||"-"}</td>
                                   <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:G.mid,fontWeight:700}}>{t["단가"]?parseInt(t["단가"]).toLocaleString()+"원":"-"}</td>
                                   <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["금액"]?parseInt(t["금액"]).toLocaleString()+"원":"-"}</td>
+                                  <td style={{padding:"4px 6px",whiteSpace:"nowrap"}}>
+                                    {(function(){
+                                      var itemKey = no+"_"+(t["경매시간"]||i);
+                                      var pKey = no+"_"+itemKey;
+                                      var isSold = purchases[pKey] && purchases[pKey].status === "완료";
+                                      if(isSold) return (
+                                        <span style={{background:"#fee2e2",color:"#991b1b",borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:700}}>판매완료</span>
+                                      );
+                                      return (
+                                        <div style={{display:"flex",gap:4}}>
+                                          <button onClick={function(){
+                                            setPayModal({no:no, tradeRow:t, itemKey:itemKey});
+                                          }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:6,padding:"3px 7px",fontSize:10,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+                                          <button onClick={function(){
+                                            window._chatDealer={no:no, tradeRow:t, chatType:"inquiry"};
+                                            setShowChat(true);
+                                          }} style={{background:"#f0fdf4",color:"#166534",border:"1px solid #bbf7d0",borderRadius:6,padding:"3px 7px",fontSize:10,fontWeight:700,cursor:"pointer"}}>❓ 문의</button>
+                                        </div>
+                                      );
+                                    })()}
+                                  </td>
                                 </tr>
                               );})}
                             </tbody>
@@ -792,6 +832,77 @@ function RecordCard(props) {
         </div>
 
         {showChat && <ChatModal record={r} tradeRow={window._chatDealer ? window._chatDealer.tradeRow : chatTradeRow} onClose={function(){setShowChat(false); window._chatDealer=null;}}/>}
+        {payModal && (function(){
+          var t = payModal.tradeRow;
+          var itemName = (t&&t["품목명"]) || r.itemName;
+          var grade = (t&&t["등급"]) || "";
+          var price = parseInt((t&&t["단가"])||r.price)||0;
+          var qty = (t&&t["수량"]) || r.qty;
+          var origin = (t&&t["산지명"]) || r.origin;
+          var dealerInfo = getDealerInfo(payModal.no);
+          var total = price * (parseInt(qty)||1);
+          return (
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={function(e){if(e.target===e.currentTarget)setPayModal(null);}}>
+              <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:400,overflow:"hidden"}}>
+                <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",padding:"16px"}}>
+                  <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>🛒 구매예약</div>
+                  <div style={{color:"#fff",fontWeight:800,fontSize:16,marginTop:4}}>{itemName} {grade&&"· "+grade+"등급"}</div>
+                  <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>중도매인 {dealerInfo.name} · 대전 노은시장</div>
+                </div>
+                <div style={{padding:"16px"}}>
+                  <div style={{background:"#f8fffe",borderRadius:12,padding:"14px",marginBottom:14}}>
+                    {[
+                      ["산지",origin||"-"],
+                      ["등급",grade||"-"],
+                      ["수량",qty+"개"],
+                      ["단가",price.toLocaleString()+"원"],
+                      ["결제금액",(total).toLocaleString()+"원"],
+                    ].map(function(row){return(
+                      <div key={row[0]} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #e5e7eb",fontSize:13}}>
+                        <span style={{color:"#888"}}>{row[0]}</span>
+                        <span style={{fontWeight:row[0]==="결제금액"?900:500,color:row[0]==="결제금액"?G.mid:"#333",fontSize:row[0]==="결제금액"?15:13}}>{row[1]}</span>
+                      </div>
+                    );})}
+                  </div>
+                  <div style={{background:"#fef9c3",borderRadius:10,padding:"10px 12px",fontSize:11,color:"#854d0e",marginBottom:14}}>
+                    ⚠️ 예약 완료 후 해당 상품은 판매완료로 표시됩니다. 실제 결제는 중도매인과 직접 진행하세요.
+                  </div>
+                  {payDone
+                    ? <div style={{textAlign:"center",padding:"16px 0"}}>
+                        <div style={{fontSize:36,marginBottom:8}}>✅</div>
+                        <div style={{fontWeight:800,fontSize:15,color:G.mid}}>구매예약 완료!</div>
+                        <div style={{fontSize:12,color:"#888",marginTop:4}}>중도매인에게 연락하여 결제를 진행해주세요</div>
+                        {dealerInfo.phone && <a href={"tel:"+dealerInfo.phone} style={{display:"block",marginTop:12,background:G.mid,color:"#fff",borderRadius:12,padding:"12px",textAlign:"center",fontWeight:700,fontSize:13,textDecoration:"none"}}>📞 {dealerInfo.name} 연락하기</a>}
+                        <button onClick={function(){setPayModal(null);setPayDone(false);}} style={{width:"100%",marginTop:8,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>닫기</button>
+                      </div>
+                    : <div style={{display:"flex",gap:8}}>
+                        <button onClick={function(){setPayModal(null);}} style={{flex:1,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>취소</button>
+                        <button onClick={async function(){
+                          var pKey = payModal.no+"_"+payModal.itemKey;
+                          try {
+                            var res = await fetch("/api/purchase",{
+                              method:"POST",
+                              headers:{"Content-Type":"application/json"},
+                              body:JSON.stringify({
+                                dealerNo:payModal.no, itemKey:payModal.itemKey,
+                                buyer:(loginUser&&loginUser.name)||"구매자",
+                                itemName:itemName, grade:grade, price:price, qty:qty, unit:"개", origin:origin
+                              })
+                            });
+                            var json = await res.json();
+                            if(json.ok || res.status===409){
+                              setPurchases(function(prev){var n=Object.assign({},prev); n[pKey]={status:"완료"}; return n;});
+                              setPayDone(true);
+                            }
+                          } catch(e){ alert("오류가 발생했습니다"); }
+                        }} style={{flex:2,background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer"}}>구매예약 확정</button>
+                      </div>
+                  }
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
     </div>
@@ -1091,7 +1202,20 @@ function BuyerMyPage(props) {
 // ── 중도매인 마이페이지 ──
 function DealerMyPage(props) {
   var user = props.user, tradeData = props.tradeData, onLogout = props.onLogout;
-  var listed = useState({}); var listedMap = listed[0]; var setListedMap = listed[1];
+  var _ds = (function(){ try { return JSON.parse(localStorage.getItem("agro_dealer_"+user.id)||"{}"); } catch(e){ return {}; } })();
+  var listed = useState(_ds.listedMap||{}); var listedMap = listed[0]; var setListedMap = listed[1];
+  var ats = useState(_ds.alarmSound||"1"); var alarmSound = ats[0]; var setAlarmSound = ats[1];
+  var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
+
+  function playPreview(num) {
+    try { var a = new Audio("/sounds/작교"+num+".wav"); a.play(); } catch(e){}
+  }
+
+  function saveDealer() {
+    try { localStorage.setItem("agro_dealer_"+user.id, JSON.stringify({listedMap:listedMap, alarmSound:alarmSound})); } catch(e){}
+    setSaved(true);
+    setTimeout(function(){setSaved(false);}, 2000);
+  }
 
   // 내 낙찰번호로 거래실적 필터
   var myTrades = tradeData.filter(function(t){
@@ -1170,6 +1294,34 @@ function DealerMyPage(props) {
         </div>
       )}
 
+      {/* 알림음 설정 */}
+      <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+        <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>🔔 알림음 설정</div>
+        {[
+          {num:"1", label:"알림음 1"},
+          {num:"2", label:"알림음 2"},
+        ].map(function(s){
+          var selected = alarmSound === s.num;
+          return (
+            <div key={s.num} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px",borderRadius:12,border:"2px solid "+(selected?"#40916c":"#e5e7eb"),background:selected?"#f0fdf4":"#fafafa",marginBottom:8,cursor:"pointer"}} onClick={function(){setAlarmSound(s.num);}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:20,height:20,borderRadius:"50%",border:"2px solid "+(selected?"#40916c":"#ccc"),background:selected?"#40916c":"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {selected && <div style={{width:8,height:8,borderRadius:"50%",background:"#fff"}}></div>}
+                </div>
+                <span style={{fontSize:13,fontWeight:selected?700:400,color:selected?"#1b4332":"#555"}}>{s.label}</span>
+              </div>
+              <button onClick={function(e){e.stopPropagation();playPreview(s.num);}} style={{background:"#e8f5e9",color:"#2d6a4f",border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>▶ 미리듣기</button>
+            </div>
+          );
+        })}
+        <div style={{fontSize:10,color:"#aaa",marginTop:4}}>* 저장하기 버튼을 눌러야 설정이 유지됩니다</div>
+      </div>
+
+      {/* 저장 버튼 */}
+      <button onClick={saveDealer} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s",marginBottom:10}}>
+        {isSaved ? "✅ 저장되었습니다" : "저장하기"}
+      </button>
+
       <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:8}}>로그아웃</button>
     </div>
   );
@@ -1185,6 +1337,7 @@ function App() {
   var f5 = useState(false); var searched = f5[0]; var setSearched = f5[1];
   var f6 = useState(""); var filterCategory = f6[0]; var setFilterCategory = f6[1];
   var f7 = useState(""); var filterMarket = f7[0]; var setFilterMarket = f7[1];
+  var f8 = useState("today"); var dateFilter = f8[0]; var setDateFilter = f8[1];
 
   var d1 = useState([]); var data = d1[0]; var setData = d1[1];
   var d2 = useState("idle"); var status = d2[0]; var setStatus = d2[1];
@@ -1197,6 +1350,7 @@ function App() {
   var m1 = useState(""); var mapRegion = m1[0]; var setMapRegion = m1[1];
   var l1 = useState(null); var loginUser = l1[0]; var setLoginUser = l1[1];
   var l2 = useState(false); var showLogin = l2[0]; var setShowLogin = l2[1];
+  var p1 = useState({}); var purchases = p1[0]; var setPurchases = p1[1];
 
   useEffect(function(){
     var cancelled = false;
@@ -1218,7 +1372,15 @@ function App() {
         var noeunRows = liveNoeun.length > 0 ? liveNoeun : mockNoeun;
         var liveOthers = liveRows.filter(function(r){ return r.market.id !== 8; });
         // 시트에 있는 것만 표시 (가상 데이터 보완 없음)
-        var combined = noeunRows.concat(liveOthers);
+        var allRows = noeunRows.concat(liveOthers);
+        // 완전 동일한 행 중복 제거 (같은 시장+품목+가격+수량+산지)
+        var seen = {};
+        var combined = allRows.filter(function(r){
+          var key = r.market.id+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
+          if(seen[key]) return false;
+          seen[key] = true;
+          return true;
+        });
         setData(combined);
         setLiveCount(liveNoeun.length);
         setStatus("ok");
@@ -1281,12 +1443,30 @@ function App() {
     return function(){ cancelled=true; clearInterval(iv2); };
   }, []);
 
+  // ── 구매 상태 폴링 ──
+  useEffect(function(){
+    var cancelled = false;
+    async function loadPurchases() {
+      try {
+        var res = await fetch("/api/purchases");
+        if(!res.ok) return;
+        var json = await res.json();
+        if(!cancelled) setPurchases(json.purchases || {});
+      } catch(e) {}
+    }
+    loadPurchases();
+    var iv3 = setInterval(loadPurchases, 5000); // 5초마다 갱신
+    return function(){ cancelled=true; clearInterval(iv3); };
+  }, []);
+
   var filtered = data.filter(function(r){
     if(filterCategory && r.category !== filterCategory) return false;
     if(filterItem && r.itemName !== filterItem) return false;
     if(filterMarket && r.market.name !== filterMarket) return false;
     if(filterRegion && r.market.region !== filterRegion) return false;
     if(keyword && !r.fullName.includes(keyword) && !r.market.name.includes(keyword) && !r.corp.includes(keyword) && !r.origin.includes(keyword)) return false;
+    var targetDate = dateFilter === "yesterday" ? YESTERDAY : TODAY;
+    if(r.date && r.date !== targetDate) return false;
     return true;
   }).sort(function(a,b){
     if(sortBy==="price") return a.price - b.price;
@@ -1415,6 +1595,12 @@ function App() {
               <input value={keyword} onChange={function(e){setKeyword(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")setSearched(true);}} placeholder="품목명, 시장명, 산지, 법인명 검색..." style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"10px 13px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
             </div>
 
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              {[["today","📅 오늘 경락가"],["yesterday","📋 전일 경락가"]].map(function(d){
+                var on = dateFilter===d[0];
+                return <button key={d[0]} onClick={function(){setDateFilter(d[0]); setSearched(true);}} style={{flex:1,padding:"10px 0",background:on?"linear-gradient(135deg,#0d2b1a,#40916c)":"#fff",color:on?"#fff":"#555",border:"1.5px solid "+(on?"#2d6a4f":"#d1fae5"),borderRadius:12,fontSize:13,fontWeight:on?900:500,cursor:"pointer"}}>{d[1]}</button>;
+              })}
+            </div>
             <button onClick={function(){setSearched(true);}} style={{width:"100%",background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:14,fontWeight:900,cursor:"pointer"}}>
               🔍 전국 경락가 검색
             </button>
@@ -1425,7 +1611,7 @@ function App() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontWeight:800,fontSize:14,color:"#0d1f15"}}>
                 {filterItem||keyword||filterRegion ? (filterItem||keyword||filterRegion) : "전체 품목"} 검색결과 <span style={{color:G.mid}}>{filtered.length}건</span>
-                <span style={{fontSize:11,color:"#aaa",fontWeight:400,marginLeft:6}}>({TODAY})</span>
+                <span style={{fontSize:11,color:"#aaa",fontWeight:400,marginLeft:6}}>({dateFilter==="yesterday"?YESTERDAY:TODAY})</span>
               </div>
             </div>
 
@@ -1443,7 +1629,7 @@ function App() {
                 </div>
               : <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   {filtered.slice(0, 100).map(function(r, idx){
-                    return <RecordCard key={r.id} record={r} rank={idx+1} tradeData={tradeData}/>;
+                    return <RecordCard key={r.id} record={r} rank={idx+1} tradeData={tradeData} purchases={purchases} setPurchases={setPurchases} loginUser={loginUser}/>;
                   })}
                   {filtered.length > 100 && <div style={{textAlign:"center",padding:"12px",fontSize:12,color:"#888"}}>상위 100건 표시 중 · 검색어로 필터링하세요</div>}
                 </div>
