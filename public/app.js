@@ -1519,7 +1519,7 @@ function App() {
 
   var stats = {
     total: data.length,
-    markets: new Set(data.map(function(r){return r.market.name;})).size,
+    markets: 9, // 전국 9개 중앙공영도매시장 고정
     avgPrice: data.length ? Math.round(data.reduce(function(s,r){return s+r.price;},0)/data.length) : 0,
   };
 
