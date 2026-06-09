@@ -6,16 +6,17 @@ const path    = require("path");
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const SHEET_ID    = "1ZgzcDBY3RIaBO5p2riY7EPAiM_ULhWhugUw3Ax2jAB0";
-const GID_AUCTION = "0";         // 실시간 경매정보 (경락가)
-const GID_TRADE   = "68871300";  // 거래실적 (거래실적_0608)
+const SHEET_ID_AUCTION = "1K41TJcxgJdttUCaDsiqTBB7aoJWtdQkJre5RC2vlUZc"; // 경락 데이터
+const SHEET_ID_TRADE   = "1ZgzcDBY3RIaBO5p2riY7EPAiM_ULhWhugUw3Ax2jAB0"; // 거래실적
+const GID_AUCTION = "0";
+const GID_TRADE   = "68871300";
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-async function fetchSheet(gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}&exportFormat=csv`;
+async function fetchSheet(sheetId, gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}&exportFormat=csv`;
   const r = await fetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -32,7 +33,7 @@ async function fetchSheet(gid) {
 app.get("/api/sheet", async (req, res) => {
   try {
     console.log("[경락] 데이터 가져오는 중...");
-    const csv = await fetchSheet(GID_AUCTION);
+    const csv = await fetchSheet(SHEET_ID_AUCTION, GID_AUCTION);
     console.log("[경락] 완료:", csv.trim().split("\n").length, "행");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=300");
@@ -47,7 +48,7 @@ app.get("/api/sheet", async (req, res) => {
 app.get("/api/trade", async (req, res) => {
   try {
     console.log("[거래실적] 데이터 가져오는 중...");
-    const csv = await fetchSheet(GID_TRADE);
+    const csv = await fetchSheet(SHEET_ID_TRADE, GID_TRADE);
     console.log("[거래실적] 완료:", csv.trim().split("\n").length, "행");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=300");
@@ -55,6 +56,31 @@ app.get("/api/trade", async (req, res) => {
   } catch (e) {
     console.error("[거래실적] 오류:", e.message);
     res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Claude API 프록시 (채팅용) ──
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { messages, system } = req.body;
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY || "",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        system: system,
+        messages: messages,
+      }),
+    });
+    const data = await r.json();
+    res.json(data);
+  } catch (e) {
+    res.status(502).json({ error: e.message });
   }
 });
 
