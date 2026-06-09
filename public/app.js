@@ -54,10 +54,12 @@ var MARKETS = [
 
 function getMarket(sheetName) {
   if(!sheetName) return {id:0, name:"기타", region:"기타", sheetName:"", phone:"", corp:""};
+  var clean = sheetName.trim().replace(/\s/g,"");
   var found = MARKETS.find(function(m){
-    return sheetName.includes(m.sheetName) || m.sheetName.includes(sheetName) || sheetName.replace(/\s/g,"").includes(m.sheetName) || m.sheetName.includes(sheetName.replace(/\s/g,""));
+    var ms = m.sheetName.replace(/\s/g,"");
+    return clean === ms || clean.includes(ms) || ms.includes(clean);
   });
-  return found || {id:0, name:sheetName, region:"기타", sheetName:sheetName, phone:"", corp:""};
+  return found || {id:0, name:sheetName.trim(), region:"기타", sheetName:sheetName.trim(), phone:"", corp:""};
 }
 
 // ── 가상 데이터 생성 (노은시장 제외) ──
@@ -1014,13 +1016,20 @@ function LoginModal(props) {
 // ── 구매자 마이페이지 ──
 function BuyerMyPage(props) {
   var user = props.user, onLogout = props.onLogout;
-  var ns = useState(user.name||""); var name = ns[0]; var setName = ns[1];
-  var bs = useState(user.biz||""); var biz = bs[0]; var setBiz = bs[1];
-  var bnos = useState(user.bizNo||""); var bizNo = bnos[0]; var setBizNo = bnos[1];
-  var phs = useState(user.phone||""); var phone = phs[0]; var setPhone = phs[1];
+  var _s = (function(){ try { return JSON.parse(localStorage.getItem("agro_buyer_"+user.id)||"{}" ); } catch(e){ return {}; } })();
+  var ns = useState(_s.name||user.name||""); var name = ns[0]; var setName = ns[1];
+  var bs = useState(_s.biz||user.biz||""); var biz = bs[0]; var setBiz = bs[1];
+  var bnos = useState(_s.bizNo||user.bizNo||""); var bizNo = bnos[0]; var setBizNo = bnos[1];
+  var phs = useState(_s.phone||user.phone||""); var phone = phs[0]; var setPhone = phs[1];
+  var ats = useState(_s.alarmSound||"1"); var alarmSound = ats[0]; var setAlarmSound = ats[1];
   var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
 
+  function playPreview(num) {
+    try { var a = new Audio("/sounds/"+num+".wav"); a.play(); } catch(e){}
+  }
+
   function save() {
+    try { localStorage.setItem("agro_buyer_"+user.id, JSON.stringify({name:name,biz:biz,bizNo:bizNo,phone:phone,alarmSound:alarmSound})); } catch(e){}
     setSaved(true);
     setTimeout(function(){setSaved(false);}, 2000);
   }
@@ -1050,6 +1059,28 @@ function BuyerMyPage(props) {
         <button onClick={save} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s"}}>
           {isSaved ? "✅ 저장되었습니다" : "저장하기"}
         </button>
+      </div>
+
+      <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+        <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>🔔 알림음 설정</div>
+        {[
+          {num:"1", label:"알림음 1", desc:"작교1"},
+          {num:"2", label:"알림음 2", desc:"작교2"},
+        ].map(function(s){
+          var selected = alarmSound === s.num;
+          return (
+            <div key={s.num} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px",borderRadius:12,border:"2px solid "+(selected?"#40916c":"#e5e7eb"),background:selected?"#f0fdf4":"#fafafa",marginBottom:8,cursor:"pointer"}} onClick={function(){setAlarmSound(s.num);}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:20,height:20,borderRadius:"50%",border:"2px solid "+(selected?"#40916c":"#ccc"),background:selected?"#40916c":"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {selected && <div style={{width:8,height:8,borderRadius:"50%",background:"#fff"}}></div>}
+                </div>
+                <span style={{fontSize:13,fontWeight:selected?700:400,color:selected?"#1b4332":"#555"}}>{s.label}</span>
+              </div>
+              <button onClick={function(e){e.stopPropagation();playPreview(s.num);}} style={{background:"#e8f5e9",color:"#2d6a4f",border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>▶ 미리듣기</button>
+            </div>
+          );
+        })}
+        <div style={{fontSize:10,color:"#aaa",marginTop:4}}>* 저장하기 버튼을 눌러야 설정이 유지됩니다</div>
       </div>
 
       <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>로그아웃</button>
@@ -1169,12 +1200,11 @@ function App() {
 
   useEffect(function(){
     var cancelled = false;
-    var mockData = makeMockData(); // 가상 데이터 먼저 넣기
+    var mockData = makeMockData(); // 노은 플레이스홀더용으로만 사용
 
     async function load() {
       setStatus("loading");
-      // 가상 데이터 먼저 표시
-      if(!cancelled) setData(mockData);
+      setData([]); // 빈 상태로 시작
 
       try {
         var res = await fetch(CSV_URL);
@@ -1182,25 +1212,19 @@ function App() {
         var csv = await res.text();
         if(cancelled) return;
         var liveRows = parseCSV(csv);
-        // Sheets 실제 데이터에서 노은시장 행만 추출
+        // 시트 실제 데이터만 사용 - 가상 데이터 없음
         var liveNoeun = liveRows.filter(function(r){ return r.market.id === 8; });
-        // 나머지 시장 Sheets 데이터 (노은 외)
-        var liveOthers = liveRows.filter(function(r){ return r.market.id !== 8; });
-        // mockData에서 노은 플레이스홀더, 나머지 가상 데이터 분리
-        var mockNoeun  = mockData.filter(function(r){ return r.market.id === 8; });
-        var mockOthers = mockData.filter(function(r){ return r.market.id !== 8; });
-        // 노은: 실제 데이터 있으면 실제, 없으면 플레이스홀더 유지
+        var mockNoeun = mockData.filter(function(r){ return r.market.id === 8; });
         var noeunRows = liveNoeun.length > 0 ? liveNoeun : mockNoeun;
-        // 합치기: 노은 + 다른시장 Sheets + 다른시장 가상
-        var combined = noeunRows.concat(liveOthers).concat(mockOthers);
+        var liveOthers = liveRows.filter(function(r){ return r.market.id !== 8; });
+        // 시트에 있는 것만 표시 (가상 데이터 보완 없음)
+        var combined = noeunRows.concat(liveOthers);
         setData(combined);
         setLiveCount(liveNoeun.length);
         setStatus("ok");
         setLastUpdated(new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}));
       } catch(e) {
         if(!cancelled) {
-          // 실패해도 전체 mockData(노은 플레이스홀더 포함) 유지
-          setData(mockData);
           setStatus("partial");
           setErrMsg(e.message);
         }
