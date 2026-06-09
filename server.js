@@ -84,6 +84,38 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// ── 구매예약 메모리 저장소 ──
+const purchases = {}; // key: "dealerNo_itemKey", value: {buyer, item, price, time, status}
+
+// 구매예약 등록
+app.post("/api/purchase", (req, res) => {
+  const { dealerNo, itemKey, buyer, itemName, grade, price, qty, unit, origin } = req.body;
+  if (!dealerNo || !itemKey) return res.status(400).json({ ok: false, error: "필수값 누락" });
+  const key = dealerNo + "_" + itemKey;
+  if (purchases[key] && purchases[key].status === "완료") {
+    return res.status(409).json({ ok: false, error: "이미 판매완료된 상품입니다" });
+  }
+  purchases[key] = {
+    dealerNo, itemKey, buyer: buyer || "구매자",
+    itemName, grade, price, qty, unit, origin,
+    time: new Date().toISOString(),
+    status: "완료"
+  };
+  console.log("[구매] 완료:", key, itemName, price);
+  res.json({ ok: true, key });
+});
+
+// 구매상태 조회
+app.get("/api/purchases", (req, res) => {
+  res.json({ ok: true, purchases });
+});
+
+// 구매 취소 (초기화용)
+app.delete("/api/purchase/:key", (req, res) => {
+  delete purchases[req.params.key];
+  res.json({ ok: true });
+});
+
 // ── 서버 상태 ──
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, message: "농작교 서버 정상 가동 중", time: new Date().toISOString() });
