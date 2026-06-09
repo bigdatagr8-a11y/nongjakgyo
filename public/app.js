@@ -629,9 +629,16 @@ function RecordCard(props) {
   // 노은시장 카드일 때 품목명으로 거래실적 매칭
   var matchedTrades = [];
   if(r.market.id === 8 && tradeData.length > 0) {
+    // 거래실적 날짜 중 경락 날짜와 같은 것 우선, 없으면 최신 날짜로 fallback
+    var tradeDates = Array.from(new Set(tradeData.map(function(t){return (t["경매일자"]||t["매매일자"]||"").replace(/\./g,"-").trim();}).filter(Boolean))).sort();
+    var targetTradeDate = tradeDates[tradeDates.length-1] || "";
+    // 경락 날짜랑 같은 거래실적 날짜 있으면 그걸로
+    var matchDate = tradeDates.find(function(d){ return d === r.date; }) || targetTradeDate;
     matchedTrades = tradeData.filter(function(t){
       var t품목 = (t["품목명"]||t["품목"]||"").trim();
-      return t품목 && (t품목.includes(r.itemName) || r.itemName.includes(t품목) || r.fullName.includes(t품목));
+      var tDate = (t["경매일자"]||t["매매일자"]||"").replace(/\./g,"-").trim();
+      var dateOk = !matchDate || !tDate || tDate === matchDate;
+      return dateOk && t품목 && (t품목.includes(r.itemName) || r.itemName.includes(t품목) || r.fullName.includes(t품목));
     }).slice(0, 20);
   }
   var chatTradeRow = matchedTrades.length > 0 ? matchedTrades[0] : null;
