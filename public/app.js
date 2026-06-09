@@ -1355,6 +1355,7 @@ function App() {
   var l1 = useState(null); var loginUser = l1[0]; var setLoginUser = l1[1];
   var l2 = useState(false); var showLogin = l2[0]; var setShowLogin = l2[1];
   var p1 = useState({}); var purchases = p1[0]; var setPurchases = p1[1];
+  var pv1 = useState([]); var prevData = pv1[0]; var setPrevData = pv1[1];
 
   useEffect(function(){
     var cancelled = false;
@@ -1399,6 +1400,31 @@ function App() {
     load();
     var iv = setInterval(load, 60*60*1000);
     return function(){ cancelled=true; clearInterval(iv); };
+  }, []);
+
+  // ── 전일 경락 fetch ──
+  useEffect(function(){
+    var cancelled = false;
+    async function loadPrev() {
+      try {
+        var res = await fetch("/api/sheet/prev");
+        if(!res.ok) return; // 없으면 그냥 빈 상태 유지
+        var csv = await res.text();
+        if(cancelled) return;
+        var rows = parseCSV(csv);
+        var seen = {};
+        var deduped = rows.filter(function(r){
+          var key = r.market.id+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
+          if(seen[key]) return false;
+          seen[key] = true;
+          return true;
+        });
+        setPrevData(deduped);
+      } catch(e) {}
+    }
+    loadPrev();
+    var ivP = setInterval(loadPrev, 60*60*1000);
+    return function(){ cancelled=true; clearInterval(ivP); };
   }, []);
 
   // ── 거래실적 fetch ──
@@ -1463,19 +1489,19 @@ function App() {
     return function(){ cancelled=true; clearInterval(iv3); };
   }, []);
 
-  // 시트에서 실제 존재하는 날짜 중 가장 최신 2개 추출
+  // 오늘/전일 탭에 따라 데이터 소스 선택
+  var activeData = dateFilter === "yesterday" ? prevData : data;
   var allDates = Array.from(new Set(data.map(function(r){return r.date;}).filter(Boolean))).sort();
   var latestDate = allDates[allDates.length-1] || TODAY;
-  var prevDate = allDates[allDates.length-2] || YESTERDAY;
+  var prevAllDates = Array.from(new Set(prevData.map(function(r){return r.date;}).filter(Boolean))).sort();
+  var prevDate = prevAllDates[prevAllDates.length-1] || YESTERDAY;
 
-  var filtered = data.filter(function(r){
+  var filtered = activeData.filter(function(r){
     if(filterCategory && r.category !== filterCategory) return false;
     if(filterItem && r.itemName !== filterItem) return false;
     if(filterMarket && r.market.name !== filterMarket) return false;
     if(filterRegion && r.market.region !== filterRegion) return false;
     if(keyword && !r.fullName.includes(keyword) && !r.market.name.includes(keyword) && !r.corp.includes(keyword) && !r.origin.includes(keyword)) return false;
-    var targetDate = dateFilter === "yesterday" ? prevDate : latestDate;
-    if(r.date && r.date !== targetDate) return false;
     return true;
   }).sort(function(a,b){
     if(sortBy==="price") return a.price - b.price;
@@ -1620,7 +1646,7 @@ function App() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontWeight:800,fontSize:14,color:"#0d1f15"}}>
                 {filterItem||keyword||filterRegion ? (filterItem||keyword||filterRegion) : "전체 품목"} 검색결과 <span style={{color:G.mid}}>{filtered.length}건</span>
-                <span style={{fontSize:11,color:"#aaa",fontWeight:400,marginLeft:6}}>({dateFilter==="yesterday"?prevDate:latestDate})</span>
+                <span style={{fontSize:11,color:"#aaa",fontWeight:400,marginLeft:6}}>({dateFilter==="yesterday"?(prevDate||"전일 데이터 없음"):latestDate})</span>
               </div>
             </div>
 
