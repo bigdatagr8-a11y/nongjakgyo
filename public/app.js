@@ -1136,7 +1136,7 @@ function BuyerMyPage(props) {
   var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
 
   function playPreview(num) {
-    try { var names = {"1":"작교1.wav","2":"작교2.wav"}; var a = new Audio("/sounds/"+names[num]); a.play(); } catch(e){}
+    try { var names = {"1":"작교1.wav","2":"작교2.wav","3":"작교3.m4a","4":"작교4.m4a"}; var a = new Audio("/sounds/"+names[num]); a.play(); } catch(e){}
   }
 
   function save() {
@@ -1175,8 +1175,12 @@ function BuyerMyPage(props) {
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>🔔 알림음 설정</div>
         {[
-          {num:"1", label:"알림음 1", desc:"작교1"},
-          {num:"2", label:"알림음 2", desc:"작교2"},
+          {num:"1", label:"알림음 1"},
+          {num:"2", label:"알림음 2"},
+          {num:"3", label:"알림음 3"},
+          {num:"4", label:"알림음 4"},
+          {num:"3", label:"알림음 3"},
+          {num:"4", label:"알림음 4"},
         ].map(function(s){
           var selected = alarmSound === s.num;
           return (
@@ -1208,7 +1212,7 @@ function DealerMyPage(props) {
   var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
 
   function playPreview(num) {
-    try { var a = new Audio("/sounds/작교"+num+".wav"); a.play(); } catch(e){}
+    try { var names = {"1":"작교1.wav","2":"작교2.wav","3":"작교3.m4a","4":"작교4.m4a"}; var a = new Audio("/sounds/"+names[num]); a.play(); } catch(e){}
   }
 
   function saveDealer() {
