@@ -33,7 +33,7 @@ async function fetchSheet(sheetId, gid) {
 app.get("/api/sheet", async (req, res) => {
   try {
     console.log("[경락] 데이터 가져오는 중...");
-    const csv = await fetchSheet(SHEET_ID_AUCTION, GID_AUCTION);
+    const csv = await fetchAuctionWithBackup();
     console.log("[경락] 완료:", csv.trim().split("\n").length, "행");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=300");
@@ -41,6 +41,19 @@ app.get("/api/sheet", async (req, res) => {
   } catch (e) {
     console.error("[경락] 오류:", e.message);
     res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
+// ── 전일 경락가 ──
+app.get("/api/sheet/prev", async (req, res) => {
+  if (auctionPrevCache.csv) {
+    console.log("[전일경락] 백업 데이터 반환:", auctionPrevCache.date);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache");
+    res.send(auctionPrevCache.csv);
+  } else {
+    // 백업 없으면 현재 데이터 반환 (서버 재시작 직후)
+    res.status(404).json({ ok: false, error: "전일 데이터 없음" });
   }
 });
 
@@ -83,6 +96,26 @@ app.post("/api/chat", async (req, res) => {
     res.status(502).json({ error: e.message });
   }
 });
+
+// ── 전일 경락 데이터 자동 백업 ──
+let auctionCache = { date: "", csv: "" };
+let auctionPrevCache = { date: "", csv: "" };
+
+async function fetchAuctionWithBackup() {
+  const csv = await fetchSheet(SHEET_ID_AUCTION, GID_AUCTION);
+  const lines = csv.trim().split("\n");
+  // 첫 데이터 행에서 날짜 추출
+  const today = lines.length > 1 ? (lines[1].split(",")[0]||"").split(" ")[0].trim() : "";
+  if (today && auctionCache.date && today !== auctionCache.date) {
+    // 날짜 바뀌면 이전 데이터 백업
+    auctionPrevCache = { ...auctionCache };
+    console.log("[경락] 전일 백업:", auctionCache.date, "→ 오늘:", today);
+  }
+  if (today) {
+    auctionCache = { date: today, csv };
+  }
+  return csv;
+}
 
 // ── 구매예약 메모리 저장소 ──
 const purchases = {}; // key: "dealerNo_itemKey", value: {buyer, item, price, time, status}
