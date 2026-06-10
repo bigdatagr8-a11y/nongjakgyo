@@ -217,21 +217,6 @@ function getMockReviews(seed, count) {
   return reviews;
 }
 
-function StarRating(props) {
-  var rating = props.rating, size = props.size || 12;
-  var stars = [];
-  for(var i = 1; i <= 5; i++) {
-    var filled = i <= Math.floor(rating);
-    var half = !filled && i === Math.ceil(rating) && rating % 1 !== 0;
-    stars.push(
-      <span key={i} style={{color: filled || half ? "#f59e0b" : "#d1d5db", fontSize: size}}>
-        {filled ? "★" : half ? "⭐" : "☆"}
-      </span>
-    );
-  }
-  return <span>{stars}</span>;
-}
-
 // ── 가상 낙찰자 / 등급 / 출하자 데이터 ──
 var MOCK_BIDDERS = [
   "김철수","이영호","박민준","최성진","정재훈","강동원","윤서준","임태양",
@@ -268,72 +253,6 @@ function seedPick(arr, seed) {
 }
 
 var idCounter = 10000;
-function makeMockData() {
-  var result = [];
-  var itemNames = Object.keys(PRICE_BASE);
-
-  // 노은시장 포함 전체 시장 (노은은 추가정보 빈 틀만)
-  var mockMarkets = MARKETS;
-
-  mockMarkets.forEach(function(market) {
-    var corps = CORPS_BY_MARKET[market.id] || ["지역청과"];
-    // 각 시장마다 품목 랜덤 선택 (8~14개)
-    var count = 8 + Math.floor(Math.random()*7);
-    var shuffled = itemNames.slice().sort(function(){return Math.random()-0.5;});
-    var picked = shuffled.slice(0, count);
-
-    picked.forEach(function(itemName) {
-      var base = PRICE_BASE[itemName];
-      var price = base.min + Math.floor(Math.random()*(base.max-base.min));
-      // 100원 단위 반올림
-      price = Math.round(price/100)*100;
-      var variety = "";
-      if(VARIETIES[itemName]) {
-        var vars = VARIETIES[itemName];
-        variety = vars[Math.floor(Math.random()*vars.length)];
-      }
-      var fullName = variety && variety !== itemName ? itemName+"("+variety+")" : itemName;
-      var origin = getRandOrigin(itemName);
-      var qty = (2 + Math.floor(Math.random()*18)) * 10;
-      var corp = corps[Math.floor(Math.random()*corps.length)];
-      // 날짜: 오늘 또는 어제 (랜덤)
-      var date = Math.random() > 0.3 ? TODAY : YESTERDAY;
-
-      var newId = idCounter++;
-      var mockRating = getMockRating(newId);
-      var mockReviewCount = getMockReviewCount(newId);
-      var isNoeun = market.id === 8;
-      var mockShipper = isNoeun ? {name:"", phone:""} : seedPick(MOCK_SHIPPERS, newId);
-      result.push({
-        id: newId,
-        date: date,
-        market: market,
-        itemName: itemName,
-        fullName: fullName,
-        variety: variety,
-        origin: origin,
-        qty: qty,
-        unit: base.unit,
-        price: price,
-        corp: corp,
-        emoji: getEmoji(itemName),
-        category: getCategory(itemName),
-        isMock: isNoeun ? false : true,  // 노은은 실제 데이터 틀로 표시
-        isPlaceholder: isNoeun,          // 노은 플레이스홀더 표시
-        // 추가 정보: 노은은 빈 틀, 나머지는 가상
-        bidder:       isNoeun ? "" : seedPick(MOCK_BIDDERS, newId + 1),
-        grade:        isNoeun ? "" : pickByWeight(GRADES, GRADE_WEIGHTS, newId),
-        shipperName:  isNoeun ? "" : mockShipper.name,
-        shipperPhone: isNoeun ? "" : mockShipper.phone,
-        rating:       isNoeun ? null : mockRating,
-        reviewCount:  isNoeun ? null : mockReviewCount,
-        reviews:      isNoeun ? [] : getMockReviews(newId, 3),
-      });
-    });
-  });
-
-  return result;
-}
 
 // CSV 파싱 (노은시장 실제 데이터)
 function parseCSV(csvText) {
@@ -602,7 +521,7 @@ function ChatModal(props) {
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:9999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
       <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:600,maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
 
-        {/* 헤더 */}
+        {}
         <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:"20px 20px 0 0",padding:"14px 16px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
@@ -622,7 +541,7 @@ function ChatModal(props) {
           </div>
         </div>
 
-        {/* 메시지 영역 */}
+        {}
         <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:10,background:"#f8fffe"}}>
           {messages.map(function(m,i){
             var isUser = m.role==="user";
@@ -648,14 +567,14 @@ function ChatModal(props) {
           <div ref={bottomRef}/>
         </div>
 
-        {/* 빠른 질문 */}
+        {}
         <div style={{padding:"8px 16px",background:"#f0fdf4",display:"flex",gap:6,overflowX:"auto"}}>
           {["가격 협의 가능한가요?","품질 상태는 어떤가요?","최소 구매 수량은?","언제 배송 가능한가요?"].map(function(q){return(
             <button key={q} onClick={function(){setInput(q);}} style={{background:"#fff",border:"1px solid #bbf7d0",borderRadius:20,padding:"5px 12px",fontSize:11,color:G.mid,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{q}</button>
           );})}
         </div>
 
-        {/* 입력창 */}
+        {}
         <div style={{padding:"10px 16px 20px",background:"#fff",display:"flex",gap:8,borderTop:"1px solid #e5e7eb"}}>
           <input
             value={input}
@@ -688,7 +607,6 @@ function RecordCard(props) {
     var fromSido = r.market.region || "서울";
     shippingInfo = userSido ? calcShipping(unitKg, fromSido, userSido) : null;
   }
-  var rs = useState(false); var showReviews = rs[0]; var setShowReviews = rs[1];
   var ts = useState(false); var showTrade = ts[0]; var setShowTrade = ts[1];
   var cs = useState(false); var showChat = cs[0]; var setShowChat = cs[1];
   var pm = useState(null); var payModal = pm[0]; var setPayModal = pm[1];
@@ -775,7 +693,7 @@ function RecordCard(props) {
               <div style={{fontSize:11,color:"#888",marginTop:1}}>
                 🏛️ {r.market.name} · {r.market.region}
               </div>
-              {/* 별점 */}
+              {}
               {r.rating && (
                 <div style={{display:"flex",alignItems:"center",gap:4,marginTop:3}}>
                   <StarRating rating={r.rating} size={11}/>
@@ -802,7 +720,7 @@ function RecordCard(props) {
           {r.grade && <span style={{background: r.grade==="특"?"#fef9c3": r.grade==="상"?"#dbeafe":"#f3f4f6", color: r.grade==="특"?"#854d0e": r.grade==="상"?"#1e40af":"#555", fontSize:10,fontWeight:700,borderRadius:20,padding:"3px 10px"}}>🏅 {r.grade}등급</span>}
         </div>
 
-        {/* 낙찰자 / 출하자 정보 */}
+        {}
         {(r.bidder || r.shipperName) && (
           <div style={{background:"#f8fffe",borderRadius:10,padding:"9px 12px",marginBottom:8,border:"1px solid #e0f7ec"}}>
             <div style={{fontSize:10,fontWeight:700,color:G.mid,marginBottom:6}}>📋 거래 상세정보</div>
@@ -830,7 +748,7 @@ function RecordCard(props) {
           </div>
         )}
 
-        {/* 리뷰 미리보기 토글 */}
+        {}
         {r.reviews && r.reviews.length > 0 && (
           <div style={{marginBottom:8}}>
             <button onClick={function(){setShowReviews(!showReviews);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:G.light,fontWeight:600,cursor:"pointer"}}>
@@ -851,7 +769,7 @@ function RecordCard(props) {
           </div>
         )}
 
-        {/* 노은시장 거래실적 연결 - 카드 형태 */}
+        {}
         {r.market.id === 8 && matchedTrades.length > 0 && (
           <div style={{marginBottom:8}}>
             <button onClick={function(){setShowTrade(!showTrade);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:"#2563eb",fontWeight:700,cursor:"pointer"}}>
@@ -885,7 +803,7 @@ function RecordCard(props) {
 
                   return (
                     <div key={i} style={{background:"#f8faff",borderRadius:12,border:"1px solid #bfdbfe",padding:"11px 13px"}}>
-                      {/* 상단: 중도매인 + 시간 */}
+                      {}
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
                           <div style={{background:"#1e3a8a",borderRadius:8,padding:"3px 8px"}}>
@@ -897,7 +815,7 @@ function RecordCard(props) {
                         <span style={{color:"#94a3b8",fontSize:10}}>{auctionTime}</span>
                       </div>
 
-                      {/* 중단: 산지 + 등급 + 크기 */}
+                      {}
                       <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
                         {origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📍 {origin}</span>}
                         {grade && <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:20,padding:"2px 9px",fontWeight:700,fontSize:10}}>{grade}등급</span>}
@@ -906,7 +824,7 @@ function RecordCard(props) {
                         {qty && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"2px 9px"}}>{qty}개</span>}
                       </div>
 
-                      {/* 하단: 가격 + 버튼 */}
+                      {}
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <div>
                           <span style={{fontWeight:900,fontSize:16,color:G.mid}}>{price ? price.toLocaleString()+"원" : "-"}</span>
@@ -984,7 +902,7 @@ function RecordCard(props) {
                         <span style={{fontWeight:500,color:"#333"}}>{row[1]}</span>
                       </div>
                     );})}
-                    {/* 수량 조절 */}
+                    {}
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #e5e7eb"}}>
                       <span style={{color:"#888",fontSize:13}}>구매 수량</span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -1035,7 +953,7 @@ function RecordCard(props) {
                       );
                     })}
 
-                    {/* 카드결제 입력폼 */}
+                    {}
                     {payMethod==="card" && (
                       <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb"}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:10}}>카드 정보 입력</div>
@@ -1069,7 +987,7 @@ function RecordCard(props) {
                       </div>
                     )}
 
-                    {/* 카카오페이 */}
+                    {}
                     {payMethod==="kakao" && (
                       <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb",textAlign:"center"}}>
                         <div style={{background:"#FEE500",borderRadius:12,padding:"16px",marginBottom:12,display:"inline-block",width:"100%",boxSizing:"border-box"}}>
@@ -1089,7 +1007,7 @@ function RecordCard(props) {
                       </div>
                     )}
 
-                    {/* 계좌이체 */}
+                    {}
                     {payMethod==="transfer" && (
                       <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb"}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:10}}>입금 계좌 안내</div>
@@ -1197,104 +1115,9 @@ function RecordCard(props) {
 }
 
 // ── 지도 컴포넌트 ──
-function MarketMap(props) {
   var onSelect = props.onSelect, selected = props.selected, data = props.data;
   var ss = useState(null); var hover = ss[0]; var setHover = ss[1];
 
-  var REGION_PATHS = {
-    "경기":  "M196,140 C220,130 270,128 295,148 C310,158 315,178 305,198 C290,220 255,228 225,222 C195,216 178,196 180,172 C181,158 188,144 196,140Z",
-    "강원":  "M295,118 C325,108 385,112 415,140 C432,155 428,185 410,205 C390,225 355,230 325,218 C298,208 282,185 285,160 C287,145 291,122 295,118Z",
-    "충북":  "M248,230 C272,220 310,222 328,242 C340,255 336,278 320,290 C300,304 268,305 250,292 C232,279 228,256 235,242 C238,236 244,232 248,230Z",
-    "충남":  "M165,228 C190,215 235,215 255,235 C265,247 262,268 248,280 C230,294 198,296 178,282 C158,268 152,245 160,233 C162,230 164,229 165,228Z",
-    "전북":  "M148,302 C170,292 208,290 232,308 C245,318 245,345 232,362 C218,380 188,385 162,375 C138,366 128,342 132,318 C134,308 140,304 148,302Z",
-    "전남":  "M130,378 C152,365 195,362 220,378 C235,388 238,415 228,440 C216,462 188,470 160,462 C132,454 112,430 112,404 C112,388 120,380 130,378Z",
-    "경북":  "M322,218 C348,208 398,210 425,235 C440,248 440,282 428,312 C415,340 385,352 355,348 C325,344 305,322 302,295 C298,268 305,240 315,228Z",
-    "경남":  "M228,365 C255,352 308,350 348,368 C368,378 372,408 358,435 C342,460 308,468 275,462 C245,456 222,435 220,408 C218,388 224,370 228,365Z",
-    "서울":  "M210,158 C222,152 242,152 250,162 C256,170 252,184 240,188 C226,192 210,186 206,174 C204,166 206,160 210,158Z",
-    "인천":  "M176,172 C188,164 206,164 212,174 C216,182 210,196 198,198 C184,200 172,192 170,182 C169,176 172,174 176,172Z",
-    "대전":  "M212,258 C220,252 240,252 248,262 C252,270 248,282 238,285 C226,288 212,282 208,272 C206,265 208,260 212,258Z",
-    "광주":  "M168,378 C180,372 198,374 205,384 C210,392 205,405 194,408 C180,412 165,406 162,395 C160,386 164,380 168,378Z",
-    "대구":  "M322,285 C338,278 368,278 378,295 C385,308 378,328 362,334 C345,340 322,332 316,318 C310,305 314,290 322,285Z",
-    "부산":  "M352,430 C368,418 398,418 412,435 C420,448 414,465 398,470 C380,475 355,466 348,450 C344,440 346,434 352,430Z",
-    "울산":  "M392,362 C410,352 435,354 445,372 C452,385 445,405 428,410 C410,415 390,406 384,390 C380,378 384,366 392,362Z",
-  };
-
-  var REGION_LABELS = {
-    "서울":[232,172],"인천":[190,182],"경기":[245,175],"강원":[355,168],
-    "충북":[288,260],"충남":[205,255],"대전":[228,270],"전북":[185,335],
-    "전남":[170,415],"광주":[184,392],"경북":[368,280],"대구":[348,308],
-    "경남":[290,408],"부산":[378,445],"울산":[412,382],
-  };
-
-  var ACTIVE = ["서울","인천","부산","대구","광주","대전","울산"];
-
-  var regionCounts = {};
-  (data||[]).forEach(function(r){
-    var reg = r.market.region;
-    if(reg) regionCounts[reg] = (regionCounts[reg]||0) + 1;
-  });
-
-  var ALL_REGIONS = (function(){
-    var small=["대전","광주","대구","울산","부산","서울","인천"];
-    var keys = Object.keys(REGION_PATHS);
-    var big = keys.filter(function(k){return small.indexOf(k)===-1;});
-    var sm = keys.filter(function(k){return small.indexOf(k)!==-1;});
-    return big.concat(sm);
-  })();
-
-  return (
-    <div>
-      <div style={{background:"#fff",borderRadius:16,padding:"12px 16px",marginBottom:12,border:"1px solid #bbf7d0"}}>
-        <div style={{fontWeight:900,fontSize:15,color:G.mid}}>🗺️ 전국 중앙공영도매시장</div>
-        <div style={{fontSize:11,color:"#888",marginTop:2}}>9개 시장 · 탭하면 해당 지역 필터</div>
-      </div>
-      <div style={{background:"#f8fffe",borderRadius:20,padding:10,border:"1px solid #bbf7d0"}}>
-        <svg viewBox="90 115 420 395" style={{width:"100%",display:"block"}}>
-          {ALL_REGIONS.map(function(r){
-            var path = REGION_PATHS[r];
-            var lbl = REGION_LABELS[r];
-            var isActive = ACTIVE.indexOf(r) !== -1;
-            var isSel = selected === r;
-            var isHov = hover === r;
-            var cnt = regionCounts[r] || 0;
-            var fill = isSel ? G.mid : isHov && isActive ? "#40916c" : isActive ? "#d1fae5" : "#e5e7eb";
-            var stroke = isSel ? G.mid : isActive ? "#40916c" : "#ccc";
-            return (
-              <g key={r} onClick={function(){if(isActive) onSelect(isSel ? "" : r);}}
-                onMouseEnter={function(){if(isActive)setHover(r);}} onMouseLeave={function(){setHover(null);}}>
-                <path d={path} fill={fill} stroke={stroke} strokeWidth={isSel?2:1} style={{cursor:isActive?"pointer":"default",transition:"fill 0.2s"}}/>
-                {lbl && <text x={lbl[0]} y={lbl[1]} textAnchor="middle" fontSize={isActive?9:8} fontWeight={isSel||isActive?700:400} fill={isSel?"#fff":isActive?G.mid:"#aaa"}>
-                  {r}
-                  {isActive && cnt > 0 && <tspan x={lbl[0]} dy={10} fontSize={8} fill={isSel?"#4ade80":"#40916c"}>{cnt}건</tspan>}
-                </text>}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-
-      {selected && <div style={{marginTop:12}}>
-        {MARKETS.filter(function(m){return m.region===selected;}).map(function(m){
-          var cnt = (data||[]).filter(function(r){return r.market.id===m.id||r.market.name===m.name;}).length;
-          return (
-            <div key={m.id} style={{background:"#fff",borderRadius:12,padding:"11px 14px",marginBottom:8,border:"1px solid #bbf7d0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <div style={{fontWeight:700,fontSize:13,color:G.mid}}>{m.name}</div>
-                  {m.id===8 && <span style={{background:"#ecfdf5",color:"#059669",fontSize:9,fontWeight:700,borderRadius:10,padding:"2px 6px",border:"1px solid #6ee7b7"}}>🔴 LIVE</span>}
-                </div>
-                <div style={{fontSize:11,color:"#888",marginTop:2}}>{m.region} · 📞 {m.phone}</div>
-              </div>
-              <span style={{background:"#f0fdf4",color:G.mid,fontSize:12,fontWeight:700,borderRadius:20,padding:"4px 13px"}}>{cnt}건</span>
-            </div>
-          );
-        })}
-      </div>}
-    </div>
-  );
-}
-
-// ── 중도매인 번호 → 이름/연락처 매핑 (중앙청과 과일부) ──
 var DEALER_INFO = {
   "11":  {name:"하귀봉", phone:"010-9297-5879"},
   "18":  {name:"홍경희", phone:"010-8809-4956"},
@@ -1387,7 +1210,7 @@ function LoginModal(props) {
           <button onClick={onClose} style={{position:"absolute",top:14,right:14,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:28,height:28,cursor:"pointer",fontSize:14}}>✕</button>
         </div>
         <div style={{padding:"20px"}}>
-          {/* 회원 유형 선택 */}
+          {}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
             {[["buyer","🛒 구매자"],["dealer","🏪 중도매인"]].map(function(r){return(
               <button key={r[0]} onClick={function(){setRole(r[0]);setId("");setPw("");setErr("");}} style={{padding:"10px",border:"2px solid "+(role===r[0]?G.mid:"#e5e7eb"),borderRadius:12,background:role===r[0]?"#f0fdf4":"#fff",color:role===r[0]?G.mid:"#888",fontWeight:role===r[0]?800:400,fontSize:13,cursor:"pointer"}}>
@@ -1477,7 +1300,7 @@ function BuyerMyPage(props) {
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>📋 내 정보</div>
 
-        {/* 사업자등록번호 조회 */}
+        {}
         <div style={{marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>사업자등록번호</div>
           <div style={{display:"flex",gap:6}}>
@@ -1528,7 +1351,7 @@ function BuyerMyPage(props) {
           </div>
         );})}
 
-        {/* 사업장 주소 */}
+        {}
         <div style={{marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>사업장 주소 <span style={{color:G.light,fontWeight:400}}>(배송비 계산에 사용)</span></div>
           <input value={bizAddr} onChange={function(e){setBizAddr(e.target.value);}} placeholder="서울 송파구 올림픽로 300"
@@ -1546,7 +1369,7 @@ function BuyerMyPage(props) {
         </button>
       </div>
 
-      {/* 보증금(예치금) 현황 */}
+      {}
       {(function(){
         var purchases = [];
         try { var raw = localStorage.getItem("agro_purchase_"+user.id); purchases = raw ? JSON.parse(raw) : []; } catch(e){}
@@ -1562,7 +1385,7 @@ function BuyerMyPage(props) {
                 style={{background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ 충전하기</button>
             </div>
 
-            {/* 잔액 카드 */}
+            {}
             <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:12,padding:"18px",color:"#fff",marginBottom:12}}>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4}}>사용 가능 잔액</div>
               <div style={{fontSize:32,fontWeight:900,color:"#4ade80"}}>{balance.toLocaleString()}<span style={{fontSize:16,fontWeight:500}}>원</span></div>
@@ -1573,7 +1396,7 @@ function BuyerMyPage(props) {
               </div>
             </div>
 
-            {/* 예약 내역 */}
+            {}
             {purchases.length > 0 ? (
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>예약 내역</div>
@@ -1607,7 +1430,7 @@ function BuyerMyPage(props) {
               💡 예치금으로 보증금 결제 시 즉시 차감됩니다. 수령 시 잔금은 중도매인에게 직접 결제하세요.
             </div>
 
-            {/* 충전 모달 */}
+            {}
             {showCharge && (
               <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={function(e){if(e.target===e.currentTarget){setShowCharge(false);setChargeDone(false);}}}>
                 <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:380,overflow:"hidden",maxHeight:"90vh",overflowY:"auto"}}>
@@ -1618,7 +1441,7 @@ function BuyerMyPage(props) {
                   </div>
                   <div style={{padding:"16px"}}>
                     {!chargeDone ? <>
-                      {/* 빠른 충전 금액 */}
+                      {}
                       <div style={{marginBottom:12}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>충전 금액 선택</div>
                         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:8}}>
@@ -1635,7 +1458,7 @@ function BuyerMyPage(props) {
                         {chargeAmt && parseInt(chargeAmt)>0 && <div style={{textAlign:"right",fontSize:12,color:G.mid,fontWeight:700,marginTop:4}}>{parseInt(chargeAmt).toLocaleString()}원 충전</div>}
                       </div>
 
-                      {/* 결제수단 */}
+                      {}
                       <div style={{marginBottom:12}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단</div>
                         {[["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
@@ -1828,7 +1651,7 @@ function DealerMyPage(props) {
         </div>
       )}
 
-      {/* 연락처 공개 설정 */}
+      {}
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:4}}>📞 연락처 공개 설정</div>
         <div style={{fontSize:11,color:"#888",marginBottom:14}}>구매자가 경락 카드에서 내 전화번호를 볼 수 있도록 허용합니다</div>
@@ -1855,7 +1678,7 @@ function DealerMyPage(props) {
         })()}
       </div>
 
-      {/* 알림음 설정 */}
+      {}
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>🔔 알림음 설정</div>
         {[
@@ -1880,7 +1703,7 @@ function DealerMyPage(props) {
         <div style={{fontSize:10,color:"#aaa",marginTop:4}}>* 저장하기 버튼을 눌러야 설정이 유지됩니다</div>
       </div>
 
-      {/* 저장 버튼 */}
+      {}
       <button onClick={saveDealer} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s",marginBottom:10}}>
         {isSaved ? "✅ 저장되었습니다" : "저장하기"}
       </button>
@@ -2189,7 +2012,6 @@ function App() {
     return base || name;
   }
 
-
   var filtered = activeData.filter(function(r){
     // 대분류 품목 매칭
     if(filterItem && getRepItem(r.itemName) !== filterItem) return false;
@@ -2223,7 +2045,6 @@ function App() {
     if(sortBy==="qty") return b.qty - a.qty;
     return 0;
   });
-
 
   // 대분류 품목 리스트 (중복 제거 + 정렬)
   var itemList = Array.from(new Set(activeData.map(function(r){ return getRepItem(r.itemName); }).filter(Boolean))).sort();
@@ -2260,7 +2081,7 @@ function App() {
   return (
     <div style={{minHeight:"100vh",background:G.bg,fontFamily:"'Noto Sans KR','Apple SD Gothic Neo',sans-serif"}}>
 
-      {/* 헤더 */}
+      {}
       <div style={{background:"linear-gradient(160deg,#0d2b1a 0%,#1b4332 55%,#2d6a4f 100%)"}}>
         <div style={{maxWidth:600,margin:"0 auto",padding:"0 16px"}}>
           <div style={{padding:"16px 0 12px"}}>
@@ -2282,7 +2103,7 @@ function App() {
                   <span style={{background:"rgba(239,68,68,0.2)",color:"#fca5a5",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px"}}>🔴 연결 오류 · 재시도 중</span>
                 </div>}
               </div>
-              {/* 로그인 버튼 */}
+              {}
               <div style={{marginTop:4}}>
                 {loginUser
                   ? <button onClick={function(){setTab("mypage");}} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
@@ -2296,7 +2117,7 @@ function App() {
             </div>
           </div>
 
-          {/* 탭 */}
+          {}
           <div style={{display:"flex",gap:2,paddingBottom:0}}>
             {[["search","🔍 경락"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
               var active = tab===t[0];
@@ -2308,13 +2129,13 @@ function App() {
         </div>
       </div>
 
-      {/* 콘텐츠 */}
+      {}
       <div style={{maxWidth:600,margin:"0 auto",padding:"16px"}}>
 
-        {/* 경락 검색 탭 */}
+        {}
         {tab==="search" && <div>
 
-          {/* 통계 카드 */}
+          {}
           {(status==="ok"||status==="partial"||data.length>0) && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
             {[
               ["📊","오늘 경락",stats.total+"건"],
@@ -2329,11 +2150,11 @@ function App() {
             );})}
           </div>}
 
-          {/* 검색 필터 */}
+          {}
           <div style={{background:"#fff",borderRadius:16,padding:"16px",marginBottom:14,border:"1px solid #e5e7eb",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
             <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:12}}>🔍 경락가 검색</div>
 
-            {/* 품목 선택 */}
+            {}
             <div style={{marginBottom:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목</div>
               <select value={filterItem} onChange={function(e){setFilterItem(e.target.value); setFilterSubItem(""); setFilterGrade(""); setFilterUnit("");}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
@@ -2342,7 +2163,7 @@ function App() {
               </select>
             </div>
 
-            {/* 품목상세 - 대분류 선택 시만 표시 */}
+            {}
             {filterItem && subItemList.length > 1 && (
               <div style={{marginBottom:8}}>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목 상세</div>
@@ -2353,7 +2174,7 @@ function App() {
               </div>
             )}
 
-            {/* 등급 + 단위 */}
+            {}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>등급</div>
@@ -2371,7 +2192,7 @@ function App() {
               </div>
             </div>
 
-            {/* 도매시장 */}
+            {}
             <div style={{marginBottom:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>도매시장</div>
               <select value={filterMarket} onChange={function(e){setFilterMarket(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
@@ -2395,7 +2216,7 @@ function App() {
             </button>
           </div>
 
-          {/* 검색 결과 */}
+          {}
           {searched && <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontWeight:800,fontSize:14,color:"#0d1f15"}}>
@@ -2412,7 +2233,7 @@ function App() {
 
             </div>
 
-            {/* 실속가순 안내 배너 */}
+            {}
             {sortBy==="smart" && (function(){
               var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
               return (
@@ -2459,139 +2280,7 @@ function App() {
 
         </div>}
 
-        {/* 거래실적 탭 */}
-        {tab==="trade" && <div>
-
-          {tradeStatus==="loading" && <div style={{textAlign:"center",padding:"40px 0"}}>
-            <div style={{fontSize:32,marginBottom:10}}>⏳</div>
-            <div style={{fontSize:13,color:"#888"}}>거래실적 불러오는 중...</div>
-          </div>}
-
-          {tradeStatus==="error" && <div style={{textAlign:"center",padding:"40px 0"}}>
-            <div style={{fontSize:32,marginBottom:10}}>⚠️</div>
-            <div style={{fontSize:13,color:"#888"}}>거래실적을 불러오지 못했습니다</div>
-          </div>}
-
-          {tradeStatus==="ok" && tradeData.length > 0 && (function(){
-            // 품목별 그룹화
-            var itemGroups = {};
-            tradeData.forEach(function(row){
-              var item = (row["품목명"]||row["품목"]||"기타").trim();
-              if(!itemGroups[item]) itemGroups[item] = [];
-              itemGroups[item].push(row);
-            });
-
-            return (
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                {Object.keys(itemGroups).map(function(itemName){
-                  var rows = itemGroups[itemName];
-                  var emoji = getEmoji(itemName);
-                  // 중도매인별 그룹화
-                  var dealerMap = {};
-                  rows.forEach(function(r){
-                    var no = String(r["낙찰 중도매인"]||"").trim();
-                    if(!dealerMap[no]) dealerMap[no] = [];
-                    dealerMap[no].push(r);
-                  });
-                  var dealers = Object.keys(dealerMap);
-                  var allPrices = rows.map(function(r){ return parseInt((r["단가"]||"0").replace(/,/g,"")); }).filter(function(p){ return p>0; });
-                  var minPrice = allPrices.length ? Math.min.apply(null,allPrices) : 0;
-                  var maxPrice = allPrices.length ? Math.max.apply(null,allPrices) : 0;
-                  var sampleWeight = (rows[0]&&rows[0]["중량"]) ? rows[0]["중량"] : "";
-
-                  return (
-                    <div key={itemName} style={{background:"#fff",borderRadius:16,border:"1px solid #e0e7ff",overflow:"hidden",boxShadow:"0 2px 8px rgba(30,64,175,0.06)"}}>
-                      {/* 품목 헤더 */}
-                      <div style={{background:"linear-gradient(90deg,#1e3a8a,#1e40af)",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span style={{fontSize:22}}>{emoji}</span>
-                          <div>
-                            <div style={{color:"#fff",fontWeight:800,fontSize:14}}>{itemName}</div>
-                            <div style={{color:"#93c5fd",fontSize:10,marginTop:1}}>{rows.length}건 · {dealers.length}명 낙찰</div>
-                          </div>
-                        </div>
-                        <div style={{textAlign:"right"}}>
-                          <div style={{color:"#4ade80",fontWeight:900,fontSize:15}}>
-                            {minPrice===maxPrice ? minPrice.toLocaleString() : minPrice.toLocaleString()+"~"+maxPrice.toLocaleString()}원
-                          </div>
-                          <div style={{color:"rgba(255,255,255,0.6)",fontSize:10}}>
-                            {sampleWeight ? "/ "+sampleWeight+"kg 단위" : "/ 단위"}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 거래 내역 테이블 */}
-                      <div style={{overflowX:"auto"}}>
-                        <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:480}}>
-                          <thead>
-                            <tr style={{background:"#eff6ff"}}>
-                              {["경매시간","산지","등급","중량","수량","단가","kg당","중도매인","문의"].map(function(h){return(
-                                <th key={h} style={{padding:"6px 8px",color:"#1e40af",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
-                              );})}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rows.map(function(row,i){
-                              var weight   = parseFloat(row["중량"]||0);
-                              var price    = parseInt((row["단가"]||"0").replace(/,/g,""))||0;
-                              var qty      = parseInt((row["수량"]||"0").replace(/,/g,""))||0;
-                              var kgPrice  = (weight>0&&price>0) ? Math.round(price/weight) : null;
-                              var grade    = (row["등급"]||"").trim();
-                              var no       = String(row["낙찰 중도매인"]||"").trim();
-                              var info     = getDealerInfo(no);
-                              var gradeStyle = {
-                                "특":{bg:"#fef9c3",color:"#854d0e"},"상":{bg:"#dbeafe",color:"#1e40af"},
-                                "보통":{bg:"#f3f4f6",color:"#555"},"1":{bg:"#fef9c3",color:"#854d0e"},
-                                "2":{bg:"#dbeafe",color:"#1e40af"},"3":{bg:"#f3f4f6",color:"#555"},
-                              }[grade]||{bg:"#f3f4f6",color:"#555"};
-                              return (
-                                <tr key={i} style={{background:i%2===0?"#fff":"#f8faff",borderBottom:"1px solid #e8edf8"}}
-                                  onMouseEnter={function(e){e.currentTarget.style.background="#eff6ff";}}
-                                  onMouseLeave={function(e){e.currentTarget.style.background=i%2===0?"#fff":"#f8faff";}}>
-                                  <td style={{padding:"6px 8px",color:"#64748b",fontSize:10}}>{(row["경매시간"]||"-")}</td>
-                                  <td style={{padding:"6px 8px",color:"#1e293b",fontWeight:500}}>{(row["산지명"]||"-")}</td>
-                                  <td style={{padding:"6px 8px"}}>
-                                    {grade ? <span style={{background:gradeStyle.bg,color:gradeStyle.color,borderRadius:6,padding:"1px 6px",fontWeight:700}}>{grade}</span> : <span style={{color:"#ccc"}}>-</span>}
-                                  </td>
-                                  <td style={{padding:"6px 8px",color:"#1e293b",fontWeight:600}}>{weight ? weight+"kg" : "-"}</td>
-                                  <td style={{padding:"6px 8px",color:"#1e293b"}}>{qty ? qty+"개" : "-"}</td>
-                                  <td style={{padding:"6px 8px"}}>
-                                    <div style={{color:G.mid,fontWeight:700}}>{price ? price.toLocaleString()+"원" : "-"}</div>
-                                    <div style={{color:"#aaa",fontSize:9}}>{weight ? weight+"kg 단위" : ""}</div>
-                                  </td>
-                                  <td style={{padding:"6px 8px"}}>
-                                    {kgPrice ? <span style={{background:"#ecfdf5",color:"#065f46",borderRadius:6,padding:"2px 6px",fontWeight:700,fontSize:10}}>{kgPrice.toLocaleString()}원</span> : <span style={{color:"#ccc"}}>-</span>}
-                                  </td>
-                                  <td style={{padding:"6px 8px",whiteSpace:"nowrap"}}>
-                                    <div style={{fontWeight:600,fontSize:10,color:"#1e293b"}}>{info.name}</div>
-                                    {info.phone && <a href={"tel:"+info.phone} style={{color:G.light,fontSize:9,textDecoration:"none"}}>📞 {info.phone}</a>}
-                                  </td>
-                                  <td style={{padding:"5px 6px"}}>
-                                    <button onClick={function(){
-                                      window._chatDealer={no:no, tradeRow:row, chatType:"inquiry"};
-                                      // 채팅 모달은 경락탭에서 열리므로 탭 전환 후 오픈
-                                    }} style={{background:"#f0fdf4",color:"#166534",border:"1px solid #bbf7d0",borderRadius:6,padding:"3px 7px",fontSize:10,fontWeight:700,cursor:"pointer"}}>❓</button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-
-          {tradeStatus==="ok" && tradeData.length===0 && <div style={{textAlign:"center",padding:"40px 0"}}>
-            <div style={{fontSize:36,marginBottom:10}}>📋</div>
-            <div style={{fontSize:13,color:"#888"}}>아직 거래 데이터가 없습니다</div>
-          </div>}
-        </div>}
-
-        {/* 지도 탭 */}
+        {}
         {tab==="map" && <MarketMap
           data={data}
           selected={mapRegion}
@@ -2601,7 +2290,7 @@ function App() {
           }}
         />}
 
-        {/* 이용안내 탭 */}
+        {}
         {tab==="guide" && <div>
           <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:20,padding:"20px",marginBottom:14,color:"#fff"}}>
             <div style={{fontWeight:900,fontSize:17,marginBottom:8}}>🌿 농작교란?</div>
@@ -2627,7 +2316,7 @@ function App() {
             </div>
           );})}
 
-          {/* 데이터 출처 안내 */}
+          {}
           <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:14,padding:"14px 16px",marginTop:4}}>
             <div style={{fontWeight:700,fontSize:13,color:G.mid,marginBottom:6}}>ℹ️ 데이터 출처</div>
             <div style={{fontSize:12,color:"#555",lineHeight:1.8}}>
@@ -2638,7 +2327,7 @@ function App() {
           </div>
         </div>}
 
-        {/* 마이페이지 탭 */}
+        {}
         {tab==="mypage" && (
           loginUser
             ? loginUser.role==="buyer"
@@ -2653,7 +2342,7 @@ function App() {
 
       </div>
 
-      {/* 로그인 모달 */}
+      {}
       {showLogin && <LoginModal
         onLogin={function(user){setLoginUser(user);setShowLogin(false);setTab("mypage");}}
         onClose={function(){setShowLogin(false);}}
