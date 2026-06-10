@@ -2863,8 +2863,7 @@ function App() {
         setLiveCount(noeunCards.length);
 
         // ── 전일 노은 카드 생성 → prevData에 합치기 ──
-        var sortedDates = Array.from(new Set(allTradeDates)).sort();
-        var prevTradeDate = sortedDates.length >= 2 ? sortedDates[sortedDates.length - 2] : null;
+        var prevTradeDate = YESTERDAY;
         if(prevTradeDate) {
           var prevRows = rows.filter(function(r){ return normDate(r["경매일자"]||r["매매일자"]||"") === prevTradeDate; });
           var prevGroups = {};
