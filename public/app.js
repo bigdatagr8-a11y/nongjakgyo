@@ -644,7 +644,7 @@ function RecordCard(props) {
       var price = parseInt((t["단가"]||"0").replace(/,/g,""))||0;
       var qty = selectedQty || 1;
       var weight = (t["중량"]||"").trim();
-      var deposit = Math.round(price * qty * 0.1 / 1000) * 1000;
+      var deposit = Math.round(price * qty * 0.1);
       var exists = cart.find(function(c){ return c.itemKey === itemKey; });
       if(exists){ alert("이미 장바구니에 담긴 상품입니다."); return; }
       cart.push({
@@ -859,7 +859,7 @@ function RecordCard(props) {
           var cMaxQty = cartModal.maxQty||1;
           var cSafeQty = Math.max(1, Math.min(cartQty, cMaxQty));
           var cTotal = cPrice * cSafeQty;
-          var cDeposit = Math.round(cTotal * 0.1 / 1000) * 1000;
+          var cDeposit = Math.round(cTotal * 0.1);
           var cInfo = getDealerInfo(cartModal.no);
           return (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={function(e){if(e.target===e.currentTarget)setCartModal(null);}}>
@@ -917,7 +917,7 @@ function RecordCard(props) {
             : getDealerInfo(payModal.no);
           var safeQty = Math.max(1, Math.min(buyQty, maxQty));
           var total = price * safeQty;
-          var deposit = Math.round(total * 0.1 / 1000) * 1000;
+          var deposit = Math.round(total * 0.1);
           return (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={function(e){if(e.target===e.currentTarget)setPayModal(null);}}>
               <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:400,overflow:"hidden",maxHeight:"90vh",overflowY:"auto"}}>
