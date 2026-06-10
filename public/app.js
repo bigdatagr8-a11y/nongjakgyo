@@ -2529,7 +2529,7 @@ function App() {
           var totalQty = rows2.reduce(function(s,r){ return s+(parseInt((r["수량"]||"0").replace(/,/g,""))||0); },0);
           var sampleWeight = (rows2[0]&&rows2[0]["중량"]) ? rows2[0]["중량"] : "";
           return {
-            id: "noeun_"+i,
+            id: "noeun_"+itemName,
             date: latestTradeDate,
             market: NOEUN_MARKET,
             itemName: itemName,
