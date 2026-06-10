@@ -936,7 +936,7 @@ function RecordCard(props) {
                                 <button onClick={function(){
                                   if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
                                   setBuyQty(1);
-                                  setPayModal({no:no,tradeRow:t,itemKey:itemKey,maxQty:parseInt(qty)||1});
+                                  setPayModal({no:no,tradeRow:t,itemKey:itemKey,maxQty:parseInt(qty)||1,cardId:r.id});
                                 }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
                                 <button onClick={function(){
                                   if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
@@ -968,7 +968,7 @@ function RecordCard(props) {
               <button onClick={function(){
                 if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
                 setBuyQty(1);
-                setPayModal({no:"corp", tradeRow:null, itemKey:"at_"+r.id, maxQty:r.qty||1, isAT:true});
+                setPayModal({no:"corp", tradeRow:null, itemKey:"at_"+r.id, maxQty:r.qty||1, isAT:true, cardId:r.id});
               }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
               <button onClick={function(){
                 if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
@@ -1491,7 +1491,7 @@ function RecordCard(props) {
                                 saveBalance(newBal);
                                 setCurBalance(newBal);
                               }
-                              setPurchases(function(prev){var n=Object.assign({},prev); n[pKey]={status:"완료",deposit:deposit,total:total,payMethod:payMethod}; return n;});
+                              setPurchases(function(prev){var n=Object.assign({},prev); n[pKey]={status:"완료",deposit:deposit,total:total,payMethod:payMethod}; if(payModal.cardId!==undefined&&payModal.cardId!==null){n["soldcard_"+String(payModal.cardId)]={status:"완료"};} try{localStorage.setItem("agro_sold_cards",JSON.stringify(n));}catch(e){} return n;});
                               // localStorage에 구매 내역 저장
                               try {
                                 var uid = loginUser ? loginUser.id : "guest";
@@ -2336,19 +2336,16 @@ function App() {
       });
       localStorage.setItem("agro_purchase_"+loginUser.id, JSON.stringify(existing));
     }catch(e){}
-    setPurchases(function(prev){
-      var n = Object.assign({}, prev);
-      currentCart.forEach(function(c){
-        n[c.itemKey] = {status:"완료", deposit:c.deposit, total:c.total, payMethod:cartPM};
-        // 카드 단위로도 sold-out 기록 (경락 검색에서 숨김 처리용)
-        if(c.cardId !== undefined && c.cardId !== null) {
-          n["soldcard_"+c.cardId] = {status:"완료"};
-        }
-      });
-      // localStorage에도 영구 저장 (새로고침 후에도 유지)
-      try { localStorage.setItem("agro_sold_cards", JSON.stringify(n)); } catch(e){}
-      return n;
+    var soldCards = {};
+    try { soldCards = JSON.parse(localStorage.getItem("agro_sold_cards")||"{}"); } catch(e){}
+    currentCart.forEach(function(c){
+      soldCards[c.itemKey] = {status:"완료", deposit:c.deposit, total:c.total, payMethod:cartPM};
+      if(c.cardId !== undefined && c.cardId !== null) {
+        soldCards["soldcard_"+String(c.cardId)] = {status:"완료"};
+      }
     });
+    try { localStorage.setItem("agro_sold_cards", JSON.stringify(soldCards)); } catch(e){}
+    setPurchases(soldCards);
     setCartList([]);
     setCartCount(0);
     try{ localStorage.setItem("agro_cart_"+loginUser.id, "[]"); }catch(e){}
