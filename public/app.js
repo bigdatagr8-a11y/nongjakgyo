@@ -679,19 +679,20 @@ function RecordCard(props) {
             <span style={{fontSize:28}}>{r.emoji}</span>
             <div>
               <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{fontWeight:800,fontSize:15,color:"#0d1f15"}}>{r.fullName}</div>
+                <div style={{fontWeight:800,fontSize:15,color:"#0d1f15"}}>
+                  {r.market.id !== 8
+                    ? r.itemName  // AT데이터: 품목명만 (BOX/수박 등 괄호 제거)
+                    : r.fullName  // 노은시장: 그대로
+                  }
+                </div>
                 {!r.isMock && <span style={{background:"#ecfdf5",color:"#059669",fontSize:9,fontWeight:700,borderRadius:10,padding:"2px 6px",border:"1px solid #6ee7b7"}}>🔴 LIVE</span>}
               </div>
+              {r.variety && r.market.id !== 8 && (
+                <div style={{fontSize:11,color:"#888",marginTop:1}}>{r.variety}</div>
+              )}
               <div style={{fontSize:11,color:"#888",marginTop:1}}>
                 🏛️ {r.market.name} · {r.market.region}
               </div>
-              {r.rating && (
-                <div style={{display:"flex",alignItems:"center",gap:4,marginTop:3}}>
-                  <StarRating rating={r.rating} size={11}/>
-                  <span style={{fontSize:11,fontWeight:700,color:"#f59e0b"}}>{r.rating.toFixed(1)}</span>
-                  <span style={{fontSize:10,color:"#aaa"}}>({r.reviewCount}건)</span>
-                </div>
-              )}
             </div>
           </div>
           {r.market.id !== 8 && <div style={{textAlign:"right"}}>
@@ -705,7 +706,11 @@ function RecordCard(props) {
         </div>
 
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          {r.market.id !== 8 && <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📦 {r.qty}{r.unit}</span>}
+          {r.market.id !== 8 && r.qty > 0 && (
+            <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>
+              📦 {r.qty}개 {r.unit ? "/ "+r.unit : ""}
+            </span>
+          )}
           {r.origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📍 {r.origin}</span>}
           {r.corp && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"3px 10px"}}>🏢 {r.corp}</span>}
           {r.grade && <span style={{background: r.grade==="특"?"#fef9c3": r.grade==="상"?"#dbeafe":"#f3f4f6", color: r.grade==="특"?"#854d0e": r.grade==="상"?"#1e40af":"#555", fontSize:10,fontWeight:700,borderRadius:20,padding:"3px 10px"}}>🏅 {r.grade}등급</span>}
