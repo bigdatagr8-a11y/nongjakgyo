@@ -643,9 +643,14 @@ function RecordCard(props) {
   var rs = useState(false); var showReviews = rs[0]; var setShowReviews = rs[1];
   var ts = useState(false); var showTrade = ts[0]; var setShowTrade = ts[1];
   var cs = useState(false); var showChat = cs[0]; var setShowChat = cs[1];
-  var pm = useState(null); var payModal = pm[0]; var setPayModal = pm[1]; // {dealerNo, tradeRow}
+  var pm = useState(null); var payModal = pm[0]; var setPayModal = pm[1];
   var pp = useState(false); var payDone = pp[0]; var setPayDone = pp[1];
   var pmt = useState(""); var payMethod = pmt[0]; var setPayMethod = pmt[1];
+
+  // 잔액 읽기/쓰기
+  function getBalance(){ try { return parseInt(localStorage.getItem("agro_balance_"+(loginUser&&loginUser.id||"guest"))||"0"); } catch(e){ return 0; } }
+  function saveBalance(v){ try { localStorage.setItem("agro_balance_"+(loginUser&&loginUser.id||"guest"), String(v)); } catch(e){} }
+  var bals = useState(getBalance()); var curBalance = bals[0]; var setCurBalance = bals[1];
 
   // 노은시장 카드일 때 품목명으로 거래실적 매칭
   var matchedTrades = [];
@@ -731,15 +736,15 @@ function RecordCard(props) {
               )}
             </div>
           </div>
-          <div style={{textAlign:"right"}}>
+          {r.market.id !== 8 && <div style={{textAlign:"right"}}>
             <div style={{fontWeight:900,fontSize:19,color:G.mid}}>{displayPrice.toLocaleString()}<span style={{fontSize:12,fontWeight:500}}>원</span></div>
             <div style={{fontSize:10,color:"#888",marginTop:1,fontWeight:600}}>/ {displayUnit}</div>
             {r.unitKg && r.unitKg > 0 && <div style={{fontSize:10,color:"#aaa",marginTop:1}}>(kg당 {Math.round(displayPrice/r.unitKg).toLocaleString()}원)</div>}
-          </div>
+          </div>}
         </div>
 
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📦 {r.qty}{r.unit}</span>
+          {r.market.id !== 8 && <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📦 {r.qty}{r.unit}</span>}
           {r.origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📍 {r.origin}</span>}
           {r.corp && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"3px 10px"}}>🏢 {r.corp}</span>}
           {r.grade && <span style={{background: r.grade==="특"?"#fef9c3": r.grade==="상"?"#dbeafe":"#f3f4f6", color: r.grade==="특"?"#854d0e": r.grade==="상"?"#1e40af":"#555", fontSize:10,fontWeight:700,borderRadius:20,padding:"3px 10px"}}>🏅 {r.grade}등급</span>}
@@ -860,8 +865,10 @@ function RecordCard(props) {
                           {isSold
                             ? <span style={{background:"#fee2e2",color:"#991b1b",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700}}>판매완료</span>
                             : <>
-                                <button onClick={function(){ setPayModal({no:no,tradeRow:t,itemKey:itemKey}); }}
-                                  style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+                                <button onClick={function(){
+                                  if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
+                                  setPayModal({no:no,tradeRow:t,itemKey:itemKey});
+                                }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
                                 <button onClick={function(){ window._chatDealer={no:no,tradeRow:t,chatType:"inquiry"}; setShowChat(true); }}
                                   style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
                               </>
@@ -938,23 +945,110 @@ function RecordCard(props) {
                   </div>
                   {!payDone && <div style={{background:"#f9fafb",borderRadius:12,padding:"12px",marginBottom:12}}>
                     <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단 선택</div>
-                    {[["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
+                    {[["balance","💰 예치금 결제"],["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
                       var selected = payMethod === pm[0];
+                      var isBalance = pm[0]==="balance";
+                      var notEnough = isBalance && curBalance < deposit;
                       return (
                         <div key={pm[0]}
-                          onClick={function(){ setPayMethod(pm[0]); }}
+                          onClick={function(){ if(!notEnough) setPayMethod(pm[0]); }}
                           style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:8,
-                            border:"1.5px solid "+(selected?"#40916c":"#e5e7eb"),
-                            marginBottom:6,
-                            background:selected?"#f0fdf4":"#fff",
-                            cursor:"pointer",
-                            transition:"all 0.15s"}}>
+                            border:"1.5px solid "+(selected?"#40916c":notEnough?"#fca5a5":"#e5e7eb"),
+                            marginBottom:6, background:selected?"#f0fdf4":notEnough?"#fff5f5":"#fff",
+                            cursor:notEnough?"not-allowed":"pointer",transition:"all 0.15s",opacity:notEnough?0.6:1}}>
                           <span style={{fontSize:18}}>{pm[1].split(" ")[0]}</span>
-                          <span style={{fontSize:13,fontWeight:selected?700:500,color:selected?"#065f46":"#333"}}>{pm[1].split(" ").slice(1).join(" ")}</span>
+                          <div style={{flex:1}}>
+                            <span style={{fontSize:13,fontWeight:selected?700:500,color:selected?"#065f46":"#333"}}>{pm[1].split(" ").slice(1).join(" ")}</span>
+                            {isBalance && <div style={{fontSize:10,color:notEnough?"#ef4444":"#059669",marginTop:1}}>잔액 {curBalance.toLocaleString()}원 {notEnough?"(부족 - 마이페이지에서 충전)":"사용 가능"}</div>}
+                          </div>
                           {selected && <span style={{marginLeft:"auto",color:"#40916c",fontWeight:700,fontSize:12}}>✓ 선택됨</span>}
                         </div>
                       );
                     })}
+
+                    {/* 카드결제 입력폼 */}
+                    {payMethod==="card" && (
+                      <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:10}}>카드 정보 입력</div>
+                        <div style={{background:"linear-gradient(135deg,#1e3a8a,#2563eb)",borderRadius:12,padding:"16px",marginBottom:12,color:"#fff"}}>
+                          <div style={{fontSize:9,opacity:0.7,marginBottom:8}}>CREDIT CARD</div>
+                          <div style={{fontSize:14,fontWeight:700,letterSpacing:4,marginBottom:8}}>**** **** **** ****</div>
+                          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,opacity:0.8}}>
+                            <span>카드소유자</span><span>MM/YY</span>
+                          </div>
+                        </div>
+                        <input placeholder="카드번호 (16자리)" maxLength={19}
+                          onChange={function(e){
+                            var v=e.target.value.replace(/\D/g,"").substring(0,16);
+                            e.target.value=v.replace(/(.{4})/g,"$1 ").trim();
+                          }}
+                          style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,marginBottom:8,outline:"none",boxSizing:"border-box"}}/>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                          <input placeholder="유효기간 MM/YY" maxLength={5}
+                            onChange={function(e){
+                              var v=e.target.value.replace(/\D/g,"");
+                              if(v.length>2) v=v.substring(0,2)+"/"+v.substring(2,4);
+                              e.target.value=v;
+                            }}
+                            style={{border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none"}}/>
+                          <input placeholder="CVC" maxLength={3}
+                            type="password"
+                            style={{border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none"}}/>
+                        </div>
+                        <input placeholder="카드 비밀번호 앞 2자리" maxLength={2} type="password"
+                          style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                      </div>
+                    )}
+
+                    {/* 카카오페이 */}
+                    {payMethod==="kakao" && (
+                      <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb",textAlign:"center"}}>
+                        <div style={{background:"#FEE500",borderRadius:12,padding:"16px",marginBottom:12,display:"inline-block",width:"100%",boxSizing:"border-box"}}>
+                          <div style={{fontSize:22,fontWeight:900,color:"#3A1D1D"}}>kakao pay</div>
+                          <div style={{fontSize:12,color:"#3A1D1D",marginTop:4,opacity:0.7}}>카카오페이로 간편결제</div>
+                        </div>
+                        <div style={{background:"#f9f9f9",borderRadius:8,padding:"12px",marginBottom:10}}>
+                          <div style={{fontSize:10,color:"#888",marginBottom:6}}>QR코드로 결제</div>
+                          <div style={{width:100,height:100,margin:"0 auto",background:"#fff",border:"2px solid #ddd",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>
+                            📱
+                          </div>
+                          <div style={{fontSize:10,color:"#aaa",marginTop:6}}>카카오톡 → 더보기 → 페이 → QR결제</div>
+                        </div>
+                        <div style={{fontSize:11,color:"#555",background:"#fffde7",borderRadius:8,padding:"8px 12px"}}>
+                          결제금액: <b style={{color:"#1a1a1a"}}>{deposit.toLocaleString()}원</b>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 계좌이체 */}
+                    {payMethod==="transfer" && (
+                      <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:10}}>입금 계좌 안내</div>
+                        <div style={{background:"#f0fdf4",borderRadius:8,padding:"12px",marginBottom:10}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                            <span style={{fontSize:11,color:"#888"}}>은행</span>
+                            <span style={{fontSize:12,fontWeight:700,color:"#1a1a1a"}}>농협은행</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                            <span style={{fontSize:11,color:"#888"}}>계좌번호</span>
+                            <span style={{fontSize:12,fontWeight:700,color:"#1a1a1a"}}>352-0919-7423-83</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                            <span style={{fontSize:11,color:"#888"}}>예금주</span>
+                            <span style={{fontSize:12,fontWeight:700,color:"#1a1a1a"}}>(주)농작교</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between"}}>
+                            <span style={{fontSize:11,color:"#888"}}>입금액</span>
+                            <span style={{fontSize:13,fontWeight:900,color:"#16a34a"}}>{deposit.toLocaleString()}원</span>
+                          </div>
+                        </div>
+                        <input placeholder="입금자명 (본인 이름 입력)"
+                          style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
+                        <div style={{fontSize:10,color:"#e55",background:"#fff5f5",borderRadius:6,padding:"6px 10px"}}>
+                          ⚠️ 입금 후 확인까지 최대 10분 소요될 수 있습니다
+                        </div>
+                      </div>
+                    )}
                   </div>}
                   <div style={{background:"#fef9c3",borderRadius:10,padding:"10px 12px",fontSize:11,color:"#854d0e",marginBottom:14,lineHeight:1.6}}>
                     ⚠️ 보증금 납부 후 예약이 확정되며, 상품은 판매완료로 표시됩니다.<br/>
@@ -1001,7 +1095,20 @@ function RecordCard(props) {
                             });
                             var json = await res.json();
                             if(json.ok || res.status===409){
-                              setPurchases(function(prev){var n=Object.assign({},prev); n[pKey]={status:"완료",deposit:deposit,total:total}; return n;});
+                              // 예치금 결제면 잔액 차감
+                              if(payMethod==="balance"){
+                                var newBal = curBalance - deposit;
+                                saveBalance(newBal);
+                                setCurBalance(newBal);
+                              }
+                              setPurchases(function(prev){var n=Object.assign({},prev); n[pKey]={status:"완료",deposit:deposit,total:total,payMethod:payMethod}; return n;});
+                              // localStorage에 구매 내역 저장
+                              try {
+                                var uid = loginUser ? loginUser.id : "guest";
+                                var existing = JSON.parse(localStorage.getItem("agro_purchase_"+uid)||"[]");
+                                existing.push({key:pKey, itemName:itemName, grade:grade, origin:origin, price:price, qty:qty, deposit:deposit, total:total, payMethod:payMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:dealerInfo.name});
+                                localStorage.setItem("agro_purchase_"+uid, JSON.stringify(existing));
+                              } catch(e){}
                               setPayDone(true);
                             }
                           } catch(e){ alert("오류가 발생했습니다"); }
@@ -1254,6 +1361,18 @@ function BuyerMyPage(props) {
   var ats = useState(_s.alarmSound||"1"); var alarmSound = ats[0]; var setAlarmSound = ats[1];
   var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
 
+  // 잔액 state (localStorage 기반)
+  function getBalance(){ try { return parseInt(localStorage.getItem("agro_balance_"+user.id)||"0"); } catch(e){ return 0; } }
+  function setBalance(v){ try { localStorage.setItem("agro_balance_"+user.id, String(v)); } catch(e){} }
+  var bals = useState(getBalance()); var balance = bals[0]; var setBalanceState = bals[1];
+  function updateBalance(v){ setBalance(v); setBalanceState(v); }
+
+  // 충전 모달
+  var chs = useState(false); var showCharge = chs[0]; var setShowCharge = chs[1];
+  var camt = useState(""); var chargeAmt = camt[0]; var setChargeAmt = camt[1];
+  var cpmt = useState("card"); var chargePay = cpmt[0]; var setChargePay = cpmt[1];
+  var cdone = useState(false); var chargeDone = cdone[0]; var setChargeDone = cdone[1];
+
   function playPreview(num) {
     try { var names = {"1":"작교1.wav","2":"작교2.wav","3":"작교3.m4a","4":"작교4.m4a"}; var a = new Audio("/sounds/"+names[num]); a.play(); } catch(e){}
   }
@@ -1291,24 +1410,160 @@ function BuyerMyPage(props) {
         </button>
       </div>
 
-      {/* 보증금 현황 */}
+      {/* 보증금(예치금) 현황 */}
       {(function(){
-        var keys = [];
-        try { for(var k in localStorage){ if(k.startsWith("agro_purchase_"))keys.push(k); } } catch(e){}
-        var totalDeposit = 0; var reserveCount = 0;
-        keys.forEach(function(k){ try { var v=JSON.parse(localStorage.getItem(k)||"{}"); if(v.deposit){ totalDeposit+=v.deposit; reserveCount++; } } catch(e){} });
+        var purchases = [];
+        try { var raw = localStorage.getItem("agro_purchase_"+user.id); purchases = raw ? JSON.parse(raw) : []; } catch(e){}
+        var totalUsed   = purchases.reduce(function(s,p){return s+(p.deposit||0);},0);
+        var totalRemain = purchases.reduce(function(s,p){return s+((p.total||0)-(p.deposit||0));},0);
+        var payMethodLabel = {"card":"💳 카드","kakao":"🟡 카카오페이","transfer":"🏦 계좌이체"};
+        var QUICK_AMOUNTS = [10000,30000,50000,100000,300000];
         return (
           <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
-            <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>💰 예치금 현황</div>
-            <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:12,padding:"16px",color:"#fff",marginBottom:12}}>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4}}>납부한 보증금 총액</div>
-              <div style={{fontSize:24,fontWeight:900,color:"#4ade80"}}>{totalDeposit.toLocaleString()}원</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:4}}>총 {reserveCount}건 예약 · 잔금은 수령 시 결제</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontWeight:800,fontSize:14,color:G.mid}}>💰 예치금 현황</div>
+              <button onClick={function(){setShowCharge(true);setChargeDone(false);setChargeAmt("");}}
+                style={{background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ 충전하기</button>
             </div>
-            <div style={{fontSize:11,color:"#888",lineHeight:1.7}}>
-              💡 보증금은 예약 확정 시 납부되며, 실제 거래 완료 후 잔금 정산이 이루어집니다.<br/>
-              취소 시 중도매인과 협의하여 환불을 진행하세요.
+
+            {/* 잔액 카드 */}
+            <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:12,padding:"18px",color:"#fff",marginBottom:12}}>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4}}>사용 가능 잔액</div>
+              <div style={{fontSize:32,fontWeight:900,color:"#4ade80"}}>{balance.toLocaleString()}<span style={{fontSize:16,fontWeight:500}}>원</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:12,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.15)"}}>
+                <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>총 사용금액</div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{totalUsed.toLocaleString()}원</div></div>
+                <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>예약건수</div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{purchases.length}건</div></div>
+                <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>수령 시 잔금</div><div style={{fontSize:13,fontWeight:700,color:"#fbbf24"}}>{totalRemain.toLocaleString()}원</div></div>
+              </div>
             </div>
+
+            {/* 예약 내역 */}
+            {purchases.length > 0 ? (
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>예약 내역</div>
+                {purchases.slice().reverse().map(function(p,i){
+                  return (
+                    <div key={i} style={{background:"#f8fffe",borderRadius:10,padding:"12px",marginBottom:8,border:"1px solid #e0f7ec"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                        <div>
+                          <span style={{fontWeight:700,fontSize:13}}>{p.itemName}</span>
+                          {p.grade && <span style={{background:"#fef9c3",color:"#854d0e",fontSize:10,fontWeight:700,borderRadius:6,padding:"1px 6px",marginLeft:5}}>{p.grade}</span>}
+                        </div>
+                        <span style={{fontSize:10,color:"#aaa"}}>{p.date}</span>
+                      </div>
+                      <div style={{fontSize:11,color:"#666",marginBottom:6}}>{p.origin} · {p.qty}개 · {p.dealerName}</div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div>
+                          <span style={{fontSize:11,color:"#888"}}>보증금 </span>
+                          <span style={{fontSize:13,fontWeight:900,color:G.mid}}>{(p.deposit||0).toLocaleString()}원</span>
+                          <span style={{fontSize:10,color:"#aaa",marginLeft:4}}>· 잔금 {((p.total||0)-(p.deposit||0)).toLocaleString()}원</span>
+                        </div>
+                        <span style={{fontSize:10,color:"#888",background:"#f3f4f6",borderRadius:6,padding:"2px 7px"}}>{payMethodLabel["balance"]||"💰 예치금"}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{textAlign:"center",padding:"16px 0",color:"#aaa",fontSize:12}}>아직 예약 내역이 없습니다</div>
+            )}
+            <div style={{fontSize:11,color:"#888",lineHeight:1.7,marginTop:8,padding:"10px 12px",background:"#f8fffe",borderRadius:8}}>
+              💡 예치금으로 보증금 결제 시 즉시 차감됩니다. 수령 시 잔금은 중도매인에게 직접 결제하세요.
+            </div>
+
+            {/* 충전 모달 */}
+            {showCharge && (
+              <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={function(e){if(e.target===e.currentTarget){setShowCharge(false);setChargeDone(false);}}}>
+                <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:380,overflow:"hidden",maxHeight:"90vh",overflowY:"auto"}}>
+                  <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",padding:"16px"}}>
+                    <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>💰 예치금 충전</div>
+                    <div style={{color:"#fff",fontWeight:800,fontSize:16,marginTop:4}}>농작교 예치금</div>
+                    <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>현재 잔액: {balance.toLocaleString()}원</div>
+                  </div>
+                  <div style={{padding:"16px"}}>
+                    {!chargeDone ? <>
+                      {/* 빠른 충전 금액 */}
+                      <div style={{marginBottom:12}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>충전 금액 선택</div>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:8}}>
+                          {QUICK_AMOUNTS.map(function(amt){
+                            var sel = parseInt(chargeAmt)===amt;
+                            return <button key={amt} onClick={function(){setChargeAmt(String(amt));}}
+                              style={{padding:"8px 4px",border:"1.5px solid "+(sel?"#40916c":"#e5e7eb"),borderRadius:8,background:sel?"#f0fdf4":"#fff",color:sel?"#065f46":"#555",fontSize:11,fontWeight:sel?700:400,cursor:"pointer"}}>
+                              {amt>=10000?(amt/10000)+"만":""}원
+                            </button>;
+                          })}
+                        </div>
+                        <input type="number" placeholder="직접 입력 (원)" value={chargeAmt} onChange={function(e){setChargeAmt(e.target.value);}}
+                          style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"10px 12px",fontSize:14,fontWeight:700,outline:"none",boxSizing:"border-box",textAlign:"right"}}/>
+                        {chargeAmt && parseInt(chargeAmt)>0 && <div style={{textAlign:"right",fontSize:12,color:G.mid,fontWeight:700,marginTop:4}}>{parseInt(chargeAmt).toLocaleString()}원 충전</div>}
+                      </div>
+
+                      {/* 결제수단 */}
+                      <div style={{marginBottom:12}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단</div>
+                        {[["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
+                          var sel = chargePay===pm[0];
+                          return <div key={pm[0]} onClick={function(){setChargePay(pm[0]);}}
+                            style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:8,border:"1.5px solid "+(sel?"#40916c":"#e5e7eb"),marginBottom:6,background:sel?"#f0fdf4":"#fff",cursor:"pointer"}}>
+                            <span style={{fontSize:16}}>{pm[1].split(" ")[0]}</span>
+                            <span style={{fontSize:13,fontWeight:sel?700:400,color:sel?"#065f46":"#333"}}>{pm[1].split(" ").slice(1).join(" ")}</span>
+                            {sel && <span style={{marginLeft:"auto",color:"#40916c",fontWeight:700,fontSize:12}}>✓</span>}
+                          </div>;
+                        })}
+
+                        {chargePay==="card" && <div style={{background:"#f9fafb",borderRadius:10,padding:"12px",marginTop:8}}>
+                          <div style={{background:"linear-gradient(135deg,#1e3a8a,#2563eb)",borderRadius:10,padding:"14px",color:"#fff",marginBottom:10}}>
+                            <div style={{fontSize:9,opacity:0.7}}>CREDIT CARD</div>
+                            <div style={{fontSize:13,fontWeight:700,letterSpacing:3,margin:"6px 0"}}>**** **** **** ****</div>
+                            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,opacity:0.8}}><span>카드소유자</span><span>MM/YY</span></div>
+                          </div>
+                          <input placeholder="카드번호 16자리" onChange={function(e){var v=e.target.value.replace(/\D/g,"").substring(0,16);e.target.value=v.replace(/(.{4})/g,"$1 ").trim();}} style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,marginBottom:6,outline:"none",boxSizing:"border-box"}}/>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                            <input placeholder="MM/YY" maxLength={5} style={{border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none"}}/>
+                            <input placeholder="CVC" maxLength={3} type="password" style={{border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none"}}/>
+                          </div>
+                        </div>}
+
+                        {chargePay==="kakao" && <div style={{background:"#FEE500",borderRadius:10,padding:"14px",marginTop:8,textAlign:"center"}}>
+                          <div style={{fontSize:18,fontWeight:900,color:"#3A1D1D"}}>kakao pay</div>
+                          <div style={{width:80,height:80,margin:"8px auto",background:"#fff",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>📱</div>
+                          <div style={{fontSize:10,color:"#3A1D1D",opacity:0.7}}>카카오톡 → 페이 → QR결제</div>
+                        </div>}
+
+                        {chargePay==="transfer" && <div style={{background:"#f0fdf4",borderRadius:10,padding:"12px",marginTop:8}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:11,color:"#888"}}>은행</span><span style={{fontSize:12,fontWeight:700}}>농협은행</span></div>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:11,color:"#888"}}>계좌번호</span><span style={{fontSize:12,fontWeight:700}}>352-0919-7423-83</span></div>
+                          <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:11,color:"#888"}}>예금주</span><span style={{fontSize:12,fontWeight:700}}>(주)농작교</span></div>
+                        </div>}
+                      </div>
+
+                      <button onClick={function(){
+                        var amt = parseInt(chargeAmt)||0;
+                        if(amt < 1000){ alert("최소 충전금액은 1,000원입니다."); return; }
+                        updateBalance(balance + amt);
+                        // 충전 내역 저장
+                        try {
+                          var hist = JSON.parse(localStorage.getItem("agro_charge_"+user.id)||"[]");
+                          hist.push({amt:amt,payMethod:chargePay,date:new Date().toLocaleDateString("ko-KR")});
+                          localStorage.setItem("agro_charge_"+user.id, JSON.stringify(hist));
+                        } catch(e){}
+                        setChargeDone(true);
+                      }} disabled={!chargeAmt||parseInt(chargeAmt)<1000}
+                        style={{width:"100%",background:(chargeAmt&&parseInt(chargeAmt)>=1000)?"linear-gradient(135deg,#0d2b1a,#40916c)":"#d1d5db",color:"#fff",border:"none",borderRadius:12,padding:"13px",fontSize:14,fontWeight:900,cursor:(chargeAmt&&parseInt(chargeAmt)>=1000)?"pointer":"not-allowed"}}>
+                        {chargeAmt&&parseInt(chargeAmt)>=1000 ? parseInt(chargeAmt).toLocaleString()+"원 충전하기" : "금액을 입력해주세요"}
+                      </button>
+                    </> : <div style={{textAlign:"center",padding:"24px 0"}}>
+                      <div style={{fontSize:48,marginBottom:12}}>✅</div>
+                      <div style={{fontWeight:900,fontSize:16,color:G.mid}}>충전 완료!</div>
+                      <div style={{fontSize:13,color:"#888",marginTop:4}}>현재 잔액</div>
+                      <div style={{fontSize:28,fontWeight:900,color:G.dark,marginTop:4}}>{balance.toLocaleString()}원</div>
+                      <button onClick={function(){setShowCharge(false);setChargeDone(false);}} style={{marginTop:16,width:"100%",background:"#f3f4f6",color:"#555",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>닫기</button>
+                    </div>}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -1399,7 +1654,6 @@ function DealerMyPage(props) {
         <div style={{textAlign:"center",padding:"40px 0",background:"#fff",borderRadius:16,border:"1px solid #e5e7eb"}}>
           <div style={{fontSize:32,marginBottom:10}}>📋</div>
           <div style={{fontSize:13,color:"#888"}}>낙찰번호 #{user.dealerNo}의 거래실적이 없습니다</div>
-          <div style={{fontSize:11,color:"#aaa",marginTop:6}}>발표 당일 데이터로 자동 업데이트됩니다</div>
         </div>
       )}
 
