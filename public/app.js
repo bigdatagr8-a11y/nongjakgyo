@@ -466,6 +466,7 @@ function generateDealerReply(msg, ctx) {
 function ChatModal(props) {
   var onClose = props.onClose, record = props.record, tradeRow = props.tradeRow;
   var chatType = (window._chatDealer && window._chatDealer.chatType) || "chat";
+  var isAnonymous = !!(window._chatDealer && window._chatDealer.anonymous);
   var ms = useState([]); var messages = ms[0]; var setMessages = ms[1];
   var is = useState(false); var isLoading = is[0]; var setIsLoading = is[1];
   var inp = useState(""); var input = inp[0]; var setInput = inp[1];
@@ -473,8 +474,8 @@ function ChatModal(props) {
 
   var dealerNo = String((tradeRow && tradeRow["낙찰 중도매인"]) || record.bidder || "").trim();
   var dealerLookup = getDealerInfo(dealerNo);
-  var bidderName = dealerLookup.name;
-  var bidderPhone = (tradeRow && tradeRow["중도매인 연락처"]) || dealerLookup.phone || "";
+  var bidderName = isAnonymous ? "익명 중도매인" : dealerLookup.name;
+  var bidderPhone = isAnonymous ? "" : ((tradeRow && tradeRow["중도매인 연락처"]) || dealerLookup.phone || "");
   var itemName = (tradeRow && tradeRow["품목명"]) || record.fullName || record.itemName;
   var origin = (tradeRow && tradeRow["산지명"]) || record.origin || "";
   var price = parseInt((tradeRow && tradeRow["단가"]) || record.price) || 0;
@@ -538,8 +539,9 @@ function ChatModal(props) {
               </div>
               <div style={{display:"flex",gap:8,marginTop:4,alignItems:"center",flexWrap:"wrap"}}>
                 <span style={{background:"rgba(74,222,128,0.2)",color:"#4ade80",fontSize:10,borderRadius:20,padding:"2px 8px"}}>{itemName}{grade?" · "+grade+"등급":""}{price?" · "+price.toLocaleString()+"원":""}</span>
-                {bidderPhone && <a href={"tel:"+bidderPhone} style={{color:"#86efac",fontSize:10,textDecoration:"none"}}>📞 {bidderPhone}</a>}
-                {!bidderPhone && <span style={{color:"rgba(255,255,255,0.4)",fontSize:10}}>📞 연락처 등록 예정</span>}
+                {!isAnonymous && bidderPhone && <a href={"tel:"+bidderPhone} style={{color:"#86efac",fontSize:10,textDecoration:"none"}}>📞 {bidderPhone}</a>}
+                {!isAnonymous && !bidderPhone && <span style={{color:"rgba(255,255,255,0.4)",fontSize:10}}>📞 연락처 등록 예정</span>}
+                {isAnonymous && <span style={{color:"rgba(255,255,255,0.4)",fontSize:10}}>🔒 연락처 비공개</span>}
               </div>
             </div>
             <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:30,height:30,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
