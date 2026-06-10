@@ -124,14 +124,32 @@ app.get("/api/sheet", async (req, res) => {
   }
 });
 
-// ── 전일 경락가 ──
+// ── 전일 경락가 (파일 기반 영구 저장) ──
 app.get("/api/sheet/prev", async (req, res) => {
+  const fs = require("fs");
+  const prevPath = path.join(__dirname, "public", "cache_prev.json");
+
+  // 메모리에 있으면 메모리 우선
   if (auctionPrevCache.records && auctionPrevCache.records.length > 0) {
+    // 파일에도 저장해두기
+    try { fs.writeFileSync(prevPath, JSON.stringify(auctionPrevCache.records)); } catch(e){}
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.json(auctionPrevCache.records);
-  } else {
-    res.status(404).json({ ok: false, error: "전일 데이터 없음" });
+    return res.json(auctionPrevCache.records);
   }
+
+  // 메모리 없으면 파일에서 복구 (서버 재시작 후에도 유지)
+  if (fs.existsSync(prevPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(prevPath, "utf-8"));
+      console.log("[전일경락] 파일에서 복구:", data.length, "건");
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      return res.json(data);
+    } catch(e) {
+      console.error("[전일경락] 파일 복구 실패:", e.message);
+    }
+  }
+
+  res.status(404).json({ ok: false, error: "전일 데이터 없음" });
 });
 
 // ── 거래실적 (로컬 엑셀 데이터 - 구글시트 연동 해제) ──
@@ -183,12 +201,22 @@ let auctionCache     = { date: "", csv: "", records: [] };
 let auctionPrevCache = { date: "", csv: "", records: [] };
 
 async function fetchAuctionWithBackup() {
+  const fs = require("fs");
   const csv = await fetchSheet(SHEET_ID_AUCTION, GID_AUCTION);
   const lines = csv.trim().split("\n");
   const today = lines.length > 1 ? (lines[1].split(",")[0] || "").split(" ")[0].trim() : "";
+
   if (today && auctionCache.date && today !== auctionCache.date) {
     auctionPrevCache = { ...auctionCache };
     console.log("[경락] 전일 백업:", auctionCache.date, "→ 오늘:", today);
+    // 전일 데이터 파일로 영구 저장
+    try {
+      const prevPath = path.join(__dirname, "public", "cache_prev.json");
+      fs.writeFileSync(prevPath, JSON.stringify(auctionCache.records || []));
+      console.log("[경락] 전일 파일 저장 완료:", auctionCache.date, auctionCache.records.length+"건");
+    } catch(e) {
+      console.error("[경락] 전일 파일 저장 실패:", e.message);
+    }
   }
   if (today) {
     auctionCache = { date: today, csv };
@@ -215,6 +243,21 @@ app.get("/api/purchases", (req, res) => res.json({ ok: true, purchases }));
 app.delete("/api/purchase/:key", (req, res) => { delete purchases[req.params.key]; res.json({ ok: true }); });
 
 app.get("/api/health", (req, res) => res.json({ ok: true, message: "농작교 서버 정상 가동 중", time: new Date().toISOString() }));
+
+// ── 수동 전일 백업 (오늘 0610 데이터를 전일 파일로 저장) ──
+app.post("/api/backup-today", async (req, res) => {
+  try {
+    const fs = require("fs");
+    const csv = await fetchSheet(SHEET_ID_AUCTION, GID_AUCTION);
+    const records = parseAuctionCSV(csv);
+    const prevPath = path.join(__dirname, "public", "cache_prev.json");
+    fs.writeFileSync(prevPath, JSON.stringify(records));
+    console.log("[백업] 수동 전일 백업 완료:", records.length, "건");
+    res.json({ ok: true, count: records.length, message: "전일 데이터 백업 완료" });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
