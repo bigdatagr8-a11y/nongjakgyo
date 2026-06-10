@@ -2758,7 +2758,11 @@ function App() {
           seen[key] = true;
           return true;
         });
-        setPrevData(deduped);
+        setPrevData(function(prev){
+          // 기존 노은 전일 카드(noeunprev_) 보존하고 AT 전일 데이터 합치기
+          var noeunPrev = prev.filter(function(r){ return r.market && r.market.id === 8; });
+          return deduped.concat(noeunPrev);
+        });
       } catch(e) {}
     }
     loadPrev();
@@ -2857,6 +2861,48 @@ function App() {
         // 노은 카드 별도 state로 저장
         setNoeunCards(noeunCards);
         setLiveCount(noeunCards.length);
+
+        // ── 전일 노은 카드 생성 → prevData에 합치기 ──
+        var sortedDates = Array.from(new Set(allTradeDates)).sort();
+        var prevTradeDate = sortedDates.length >= 2 ? sortedDates[sortedDates.length - 2] : null;
+        if(prevTradeDate) {
+          var prevRows = rows.filter(function(r){ return normDate(r["경매일자"]||r["매매일자"]||"") === prevTradeDate; });
+          var prevGroups = {};
+          prevRows.forEach(function(row){
+            var itemName = (row["품목명"]||row["품목"]||"").trim();
+            if(!itemName) return;
+            var price = parseInt((row["단가"]||"0").replace(/,/g,""))||0;
+            if(!price) return;
+            if(!prevGroups[itemName]) prevGroups[itemName] = [];
+            prevGroups[itemName].push(row);
+          });
+          var prevNoeunCards = Object.keys(prevGroups).map(function(itemName){
+            var rows2 = prevGroups[itemName];
+            var prices = rows2.map(function(r){ return parseInt((r["단가"]||"0").replace(/,/g,"")); }).filter(function(p){ return p>0; });
+            var avgPrice = prices.length ? Math.round(prices.reduce(function(a,b){return a+b;},0)/prices.length) : 0;
+            var totalQty = rows2.reduce(function(s,r){ return s+(parseInt((r["수량"]||"0").replace(/,/g,""))||0); },0);
+            var sampleWeight = (rows2[0]&&rows2[0]["중량"]) ? rows2[0]["중량"] : "";
+            return {
+              id: "noeunprev_"+itemName,
+              date: prevTradeDate,
+              market: NOEUN_MARKET,
+              itemName: itemName,
+              fullName: itemName,
+              variety: "",
+              origin: (rows2[0]&&rows2[0]["산지명"]) ? rows2[0]["산지명"] : "",
+              qty: totalQty,
+              unit: sampleWeight ? sampleWeight+"kg" : "박스",
+              price: avgPrice,
+              corp: "중부청과",
+              emoji: getEmoji(itemName),
+              category: getCategory(itemName),
+              isMock: false,
+              bidder: "", grade: "", shipperName: "", shipperPhone: "",
+            };
+          }).filter(function(r){ return r.price > 0; });
+          // prevData(AT 전일)에 노은 전일 카드 추가
+          setPrevData(function(prev){ return prev.concat(prevNoeunCards); });
+        }
 
       } catch(e) {
         if(!cancelled) setTradeStatus("error");
