@@ -1519,7 +1519,7 @@ function App() {
             isMock: false,
             bidder: "", grade: "", shipperName: "", shipperPhone: "",
           };
-        }).filter(function(r){ return r.itemName && r.price >= 1000; });
+        }).filter(function(r){ return r.itemName && r.price >= 5000; });
 
         // 완전히 동일한 행만 제거 (경매일시+시장+법인+품목+품종+산지+수량+단위+가격)
         var seen = {};
