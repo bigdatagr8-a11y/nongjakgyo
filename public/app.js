@@ -705,11 +705,12 @@ function RecordCard(props) {
         </div>
 
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          {r.qty > 0 && (
-            <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>
-              📦 {r.qty}개 {r.unit ? "/ "+fmtUnit(r.unit) : ""}
-            </span>
-          )}
+          {r.qty > 0 && (function(){
+            var displayQty = (purchases["remainqty_"+r.id] !== undefined) ? purchases["remainqty_"+r.id] : r.qty;
+            return <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>
+              📦 {displayQty}개 {r.unit ? "/ "+fmtUnit(r.unit) : ""}{purchases["remainqty_"+r.id]!==undefined&&<span style={{color:"#f59e0b",marginLeft:3}}>(잔여)</span>}
+            </span>;
+          })()}
           {r.origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📍 {r.origin}</span>}
           {r.corp && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"3px 10px"}}>🏢 {r.corp}</span>}
           {r.grade && <span style={{background: r.grade==="특"?"#fef9c3": r.grade==="상"?"#dbeafe":"#f3f4f6", color: r.grade==="특"?"#854d0e": r.grade==="상"?"#1e40af":"#555", fontSize:10,fontWeight:700,borderRadius:20,padding:"3px 10px"}}>🏅 {r.grade}등급</span>}
@@ -880,7 +881,7 @@ function RecordCard(props) {
                       <span style={{color:"#888",fontSize:13}}>수량</span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <button onClick={function(){setCartQty(function(q){return Math.max(1,q-1);});}} style={{width:28,height:28,borderRadius:"50%",border:"1.5px solid #d1d5db",background:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                        <span style={{fontSize:15,fontWeight:700,minWidth:32,textAlign:"center"}}>{cSafeQty}개</span>
+                        <input type="number" min="1" max={cMaxQty} value={cSafeQty} onChange={function(e){var v=parseInt(e.target.value)||1; setCartQty(Math.max(1,Math.min(cMaxQty,v)));}} style={{width:52,textAlign:"center",border:"1.5px solid #bbf7d0",borderRadius:8,padding:"4px 0",fontSize:15,fontWeight:700,outline:"none"}}/>
                         <button onClick={function(){setCartQty(function(q){return Math.min(cMaxQty,q+1);});}} style={{width:28,height:28,borderRadius:"50%",border:"1.5px solid #d1d5db",background:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                         <span style={{fontSize:10,color:"#aaa"}}>/ 최대 {cMaxQty}개</span>
                       </div>
@@ -943,7 +944,7 @@ function RecordCard(props) {
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <button onClick={function(){setBuyQty(function(q){return Math.max(1,q-1);});}}
                           style={{width:28,height:28,borderRadius:"50%",border:"1.5px solid #d1d5db",background:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#555"}}>−</button>
-                        <span style={{fontSize:15,fontWeight:700,minWidth:32,textAlign:"center"}}>{safeQty}개</span>
+                        <input type="number" min="1" max={maxQty} value={safeQty} onChange={function(e){var v=parseInt(e.target.value)||1; setBuyQty(Math.max(1,Math.min(maxQty,v)));}} style={{width:52,textAlign:"center",border:"1.5px solid #bbf7d0",borderRadius:8,padding:"4px 0",fontSize:15,fontWeight:700,outline:"none"}}/>
                         <button onClick={function(){setBuyQty(function(q){return Math.min(maxQty,q+1);});}}
                           style={{width:28,height:28,borderRadius:"50%",border:"1.5px solid #d1d5db",background:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#555"}}>+</button>
                         <span style={{fontSize:10,color:"#aaa"}}>/ 최대 {maxQty}개</span>
@@ -1345,12 +1346,27 @@ function RecordCard(props) {
                                 saveBalance(newBal);
                                 setCurBalance(newBal);
                               }
-                              setPurchases(function(prev){var n=Object.assign({},prev); n[pKey]={status:"완료",deposit:deposit,total:total,payMethod:payMethod}; if(payModal.cardId!==undefined&&payModal.cardId!==null){n["soldcard_"+String(payModal.cardId)]={status:"완료"};} try{localStorage.setItem("agro_sold_cards",JSON.stringify(n));}catch(e){} return n;});
+                              setPurchases(function(prev){
+                                var n=Object.assign({},prev);
+                                n[pKey]={status:"완료",deposit:deposit,total:total,payMethod:payMethod,cardId:payModal.cardId,purchasedQty:safeQty,itemName:itemName};
+                                if(payModal.cardId!==undefined&&payModal.cardId!==null){
+                                  var prevRemain = prev["remainqty_"+String(payModal.cardId)];
+                                  var origQty = prevRemain !== undefined ? prevRemain : maxQty;
+                                  var newRemain = origQty - safeQty;
+                                  if(newRemain <= 0){
+                                    n["soldcard_"+String(payModal.cardId)]={status:"완료"};
+                                  } else {
+                                    n["remainqty_"+String(payModal.cardId)] = newRemain;
+                                  }
+                                }
+                                try{localStorage.setItem("agro_sold_cards",JSON.stringify(n));}catch(e){}
+                                return n;
+                              });
                               // localStorage에 구매 내역 저장
                               try {
                                 var uid = loginUser ? loginUser.id : "guest";
                                 var existing = JSON.parse(localStorage.getItem("agro_purchase_"+uid)||"[]");
-                                existing.push({key:pKey, itemName:itemName, grade:grade, origin:origin, price:price, qty:safeQty, deposit:deposit, total:total, payMethod:payMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:dealerInfo.name});
+                                existing.push({key:pKey, itemName:itemName, grade:grade, origin:origin, price:price, qty:safeQty, deposit:deposit, total:total, payMethod:payMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:dealerInfo.name, cardId:payModal.cardId, purchasedQty:safeQty});
                                 localStorage.setItem("agro_purchase_"+uid, JSON.stringify(existing));
                               } catch(e){}
                               setPayDone(true);
@@ -1651,7 +1667,7 @@ function BuyerMyPage(props) {
           try {
             var existing = JSON.parse(localStorage.getItem("agro_purchase_"+user.id)||"[]");
             cartItems.forEach(function(c){
-              existing.push({key:c.itemKey, itemName:c.itemName, grade:c.grade, origin:c.origin, price:c.price, qty:c.qty, deposit:c.deposit, total:c.total, payMethod:cartPayMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:c.dealerName});
+              existing.push({key:c.itemKey, itemName:c.itemName, grade:c.grade, origin:c.origin, price:c.price, qty:c.qty, deposit:c.deposit, total:c.total, payMethod:cartPayMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:c.dealerName, cardId:c.cardId, purchasedQty:c.qty});
             });
             localStorage.setItem("agro_purchase_"+user.id, JSON.stringify(existing));
           } catch(e){}
@@ -1753,6 +1769,31 @@ function BuyerMyPage(props) {
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>예약 내역</div>
                 {purchases.slice().reverse().map(function(p,i){
+                  var realIdx = purchases.length - 1 - i;
+                  function cancelPurchase() {
+                    if(!window.confirm("예약을 취소하시겠습니까?\n보증금은 환불 처리됩니다.")) return;
+                    var refund = p.deposit || 0;
+                    var newBal = balance + refund;
+                    setBalance(newBal);
+                    setBalanceState(newBal);
+                    var next = purchases.filter(function(_,idx){ return idx !== realIdx; });
+                    try { localStorage.setItem("agro_purchase_"+user.id, JSON.stringify(next)); } catch(e){}
+                    var soldCards = {};
+                    try { soldCards = JSON.parse(localStorage.getItem("agro_sold_cards")||"{}"); } catch(e){}
+                    if(p.key) delete soldCards[p.key];
+                    if(p.cardId !== undefined && p.cardId !== null) {
+                      var cardKey = String(p.cardId);
+                      delete soldCards["soldcard_"+cardKey];
+                      var cur = soldCards["remainqty_"+cardKey];
+                      if(cur !== undefined) {
+                        soldCards["remainqty_"+cardKey] = cur + (p.purchasedQty || p.qty || 1);
+                      } else {
+                        delete soldCards["remainqty_"+cardKey];
+                      }
+                    }
+                    try { localStorage.setItem("agro_sold_cards", JSON.stringify(soldCards)); } catch(e){}
+                    window.location.reload();
+                  }
                   return (
                     <div key={i} style={{background:"#f8fffe",borderRadius:10,padding:"12px",marginBottom:8,border:"1px solid #e0f7ec"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
@@ -1769,10 +1810,11 @@ function BuyerMyPage(props) {
                           <span style={{fontSize:13,fontWeight:900,color:G.mid}}>{(p.deposit||0).toLocaleString()}원</span>
                           <span style={{fontSize:10,color:"#aaa",marginLeft:4}}>· 잔금 {((p.total||0)-(p.deposit||0)).toLocaleString()}원</span>
                         </div>
-                        <span style={{fontSize:10,color:"#888",background:"#f3f4f6",borderRadius:6,padding:"2px 7px"}}>{payMethodLabel["balance"]||"💰 예치금"}</span>
+                        <button onClick={cancelPurchase} style={{background:"#fef2f2",color:"#dc2626",border:"1px solid #fca5a5",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>취소</button>
                       </div>
                     </div>
                   );
+                })}
                 })}
               </div>
             ) : (
@@ -2512,16 +2554,24 @@ function App() {
     try{
       var existing = JSON.parse(localStorage.getItem("agro_purchase_"+loginUser.id)||"[]");
       currentCart.forEach(function(c){
-        existing.push({key:c.itemKey,itemName:c.itemName,grade:c.grade,origin:c.origin,price:c.price,qty:c.qty,deposit:c.deposit,total:c.total,payMethod:cartPM,date:new Date().toLocaleDateString("ko-KR"),dealerName:c.dealerName});
+        existing.push({key:c.itemKey,itemName:c.itemName,grade:c.grade,origin:c.origin,price:c.price,qty:c.qty,deposit:c.deposit,total:c.total,payMethod:cartPM,date:new Date().toLocaleDateString("ko-KR"),dealerName:c.dealerName,cardId:c.cardId,purchasedQty:c.qty});
       });
       localStorage.setItem("agro_purchase_"+loginUser.id, JSON.stringify(existing));
     }catch(e){}
     var soldCards = {};
     try { soldCards = JSON.parse(localStorage.getItem("agro_sold_cards")||"{}"); } catch(e){}
     currentCart.forEach(function(c){
-      soldCards[c.itemKey] = {status:"완료", deposit:c.deposit, total:c.total, payMethod:cartPM};
+      soldCards[c.itemKey] = {status:"완료", deposit:c.deposit, total:c.total, payMethod:cartPM, cardId:c.cardId, purchasedQty:c.qty, itemName:c.itemName};
       if(c.cardId !== undefined && c.cardId !== null) {
-        soldCards["soldcard_"+String(c.cardId)] = {status:"완료"};
+        var prevRemain = soldCards["remainqty_"+String(c.cardId)];
+        var origQty = prevRemain !== undefined ? prevRemain : (c.maxQty || c.qty);
+        var newRemain = origQty - c.qty;
+        if(newRemain <= 0){
+          soldCards["soldcard_"+String(c.cardId)] = {status:"완료"};
+          delete soldCards["remainqty_"+String(c.cardId)];
+        } else {
+          soldCards["remainqty_"+String(c.cardId)] = newRemain;
+        }
       }
     });
     try { localStorage.setItem("agro_sold_cards", JSON.stringify(soldCards)); } catch(e){}
@@ -2843,8 +2893,10 @@ function App() {
   }
 
   var filtered = activeData.filter(function(r){
-    // 결제 완료된 카드는 검색 결과에서 제외
+    // 결제 완료(전량)된 카드는 검색 결과에서 제외
     if(purchases["soldcard_"+r.id] && purchases["soldcard_"+r.id].status==="완료") return false;
+    // 잔여수량 0이면 제외
+    if(purchases["remainqty_"+r.id] !== undefined && purchases["remainqty_"+r.id] <= 0) return false;
     // 대분류 품목 매칭
     if(filterItem && getRepItem(r.itemName) !== filterItem) return false;
     // 소분류 품목 매칭
