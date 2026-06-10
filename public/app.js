@@ -626,14 +626,6 @@ function RecordCard(props) {
   var setCartCount = props.setCartCount || function(){};
   var isTop = rank === 1;
 
-  // 실속가순일 때 배송비 계산
-  var shippingInfo = null;
-  if(sortBy === "smart") {
-    var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
-    var unitKg = parseFloat((r.unit||"").replace(/kg.*/i,""))||1;
-    var fromSido = r.market.region || "서울";
-    shippingInfo = userSido ? calcShipping(unitKg, fromSido, userSido) : null;
-  }
   var ts = useState(false); var showTrade = ts[0]; var setShowTrade = ts[1];
   var cs = useState(false); var showChat = cs[0]; var setShowChat = cs[1];
   var pm = useState(null); var payModal = pm[0]; var setPayModal = pm[1];
@@ -784,10 +776,6 @@ function RecordCard(props) {
             <div style={{fontSize:10,color:"#888",marginTop:1,fontWeight:500}}>
               {displayUnit ? "단위 "+fmtUnit(displayUnit)+" · 박스당" : "박스당"}
             </div>
-            {shippingInfo && <div style={{marginTop:4,textAlign:"right"}}>
-              <div style={{fontSize:10,color:"#64748b"}}>🚚 {shippingInfo.fromSido}→{shippingInfo.toSido} {shippingInfo.zoneLabel} +{shippingInfo.extra.toLocaleString()}원</div>
-              <div style={{fontSize:11,fontWeight:900,color:"#7c3aed",marginTop:1}}>실속가 {(displayPrice+shippingInfo.total).toLocaleString()}원</div>
-            </div>}
           </div>}
         </div>
 
@@ -921,13 +909,6 @@ function RecordCard(props) {
                           <span style={{fontWeight:900,fontSize:16,color:G.mid}}>{price ? price.toLocaleString()+"원" : "-"}</span>
                           <span style={{fontSize:10,color:"#aaa",marginLeft:4}}>/ {fmtKg(weight)}kg 단위</span>
                           {kgPrice && <div style={{fontSize:11,color:"#059669",fontWeight:600,marginTop:2}}>kg당 {kgPrice.toLocaleString()}원</div>}
-                          {sortBy==="smart" && price > 0 && (function(){
-                            var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
-                            if(!userSido) return null;
-                            var kgW = parseFloat(weight)||1;
-                            var ship = calcShipping(kgW, "대전", userSido);
-                            return <div style={{fontSize:11,color:"#7c3aed",fontWeight:700,marginTop:2}}>🚚 실속가 {(price+ship.total).toLocaleString()}원 <span style={{fontSize:9,fontWeight:400,color:"#a78bfa"}}>(배송비 {ship.total.toLocaleString()}원 포함)</span></div>;
-                          })()}
                         </div>
                         <div style={{display:"flex",gap:5}}>
                           {isSold
@@ -2969,16 +2950,6 @@ function App() {
     return true;
   }).sort(function(a,b){
     if(sortBy==="price") return a.price - b.price;
-    if(sortBy==="smart") {
-      var userSido2 = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
-      var aKg = parseFloat((a.unit||"").replace(/kg.*/i,""))||1;
-      var bKg = parseFloat((b.unit||"").replace(/kg.*/i,""))||1;
-      var aFrom = a.market ? a.market.region : "서울";
-      var bFrom = b.market ? b.market.region : "서울";
-      var aShip = userSido2 ? calcShipping(aKg, aFrom, userSido2).total : 0;
-      var bShip = userSido2 ? calcShipping(bKg, bFrom, userSido2).total : 0;
-      return (a.price + aShip) - (b.price + bShip);
-    }
     if(sortBy==="qty") return b.qty - a.qty;
     return 0;
   });
@@ -3153,28 +3124,10 @@ function App() {
             </div>
 
             <div style={{display:"flex",gap:6,marginBottom:12}}>
-              {[["price","💰 최저가순"],["smart","🚚 실속가순"],["qty","📦 수량순"]].map(function(s){return (
+              {[["price","💰 최저가순"],["qty","📦 수량순"]].map(function(s){return (
                 <button key={s[0]} onClick={function(){setSortBy(s[0]);}} style={{flex:1,padding:"8px 0",background:sortBy===s[0]?G.mid:"#fff",color:sortBy===s[0]?"#fff":"#666",border:"1px solid "+(sortBy===s[0]?G.mid:"#e5e7eb"),borderRadius:20,fontSize:11,fontWeight:sortBy===s[0]?700:400,cursor:"pointer"}}>{s[1]}</button>
               );})}
             </div>
-
-            {sortBy==="smart" && (function(){
-              var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
-              return (
-                <div style={{background:"linear-gradient(135deg,#4c1d95,#7c3aed)",borderRadius:12,padding:"12px 14px",marginBottom:10,color:"#fff"}}>
-                  <div style={{fontWeight:700,fontSize:12,marginBottom:4}}>🚚 실속가순 — 배송비 포함 실질 최저가 정렬</div>
-                  {userSido
-                    ? <div style={{fontSize:11,opacity:0.9}}>
-                        📍 도착지: <b>{userSido}</b> · 각 시장에서 출발 기준 CJ대한통운 예상 배송비 포함<br/>
-                        <span style={{fontSize:10,opacity:0.75}}>예) 서울가락→{userSido} / 부산→{userSido} 배송비가 각각 다르게 적용됩니다</span>
-                      </div>
-                    : <div style={{fontSize:11,color:"#fde68a",fontWeight:700}}>
-                        ⚠️ MY 탭 → 사업장 지역 설정 시 정확한 배송비를 계산해드립니다
-                      </div>
-                  }
-                </div>
-              );
-            })()}
 
             {filtered.length===0
               ? <div style={{textAlign:"center",padding:"40px 0"}}>
