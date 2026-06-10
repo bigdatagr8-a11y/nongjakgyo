@@ -686,6 +686,23 @@ function RecordCard(props) {
   }
   var chatTradeRow = matchedTrades.length > 0 ? matchedTrades[0] : null;
 
+  // 노은시장 카드 가격: 경락가가 이상한 값(1000원 미만)이면 거래실적 평균가로 대체
+  var displayPrice = r.price;
+  var displayUnit  = r.unit;
+  if(r.market.id === 8 && matchedTrades.length > 0) {
+    var validPrices = matchedTrades
+      .map(function(t){ return parseInt((t["단가"]||"0").replace(/,/g,"")); })
+      .filter(function(p){ return p > 1000; });
+    if(validPrices.length > 0) {
+      var avgP = Math.round(validPrices.reduce(function(s,p){return s+p;},0) / validPrices.length);
+      // 경락가가 이상하거나(1000원 미만) 없으면 거래실적 평균가 사용
+      if(!displayPrice || displayPrice < 1000) {
+        displayPrice = avgP;
+        displayUnit  = (matchedTrades[0]["중량"] || "") + "kg/박스";
+      }
+    }
+  }
+
   return (
     <div style={{background:"#fff",borderRadius:16,border:"2px solid "+(isTop?"#4ade80":"#e5e7eb"),overflow:"hidden",boxShadow:isTop?"0 4px 20px rgba(74,222,128,0.15)":"0 2px 8px rgba(0,0,0,0.05)"}}>
       {isTop && <div style={{background:"linear-gradient(90deg,#0d2b1a,#1b4332)",padding:"4px 14px",fontSize:11,color:"#4ade80",fontWeight:700}}>🏆 최저가</div>}
@@ -714,8 +731,8 @@ function RecordCard(props) {
             </div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontWeight:900,fontSize:18,color:G.mid}}>{r.price.toLocaleString()}원</div>
-            <div style={{fontSize:10,color:"#aaa"}}>/ {r.unit}</div>
+            <div style={{fontWeight:900,fontSize:18,color:G.mid}}>{displayPrice.toLocaleString()}원</div>
+            <div style={{fontSize:10,color:"#aaa"}}>/ {displayUnit}</div>
           </div>
         </div>
 
@@ -1502,8 +1519,6 @@ function App() {
             isMock: false,
             bidder: "", grade: "", shipperName: "", shipperPhone: "",
           };
-        }).filter(function(r){ return r.itemName && r.price > 0; });
-
         // 중복 제거
         var seen = {};
         var combined = liveRows.filter(function(r){
