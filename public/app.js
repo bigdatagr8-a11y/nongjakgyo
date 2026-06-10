@@ -860,7 +860,7 @@ function RecordCard(props) {
                                       ? <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:6,padding:"2px 7px",fontWeight:700,fontSize:10}}>{grade}</span>
                                       : <span style={{color:"#ccc"}}>-</span>}
                                   </td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#475569",fontSize:10}}>{size||"-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#475569",fontSize:10}}>{(size && size !== "0") ? size : "-"}</td>
                                   <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:600}}>{weight ? weight+"kg" : "-"}</td>
                                   <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b"}}>{qty ? qty+"개" : "-"}</td>
                                   <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
@@ -1449,34 +1449,30 @@ function App() {
 
   useEffect(function(){
     var cancelled = false;
-    var mockData = makeMockData(); // 노은 플레이스홀더용으로만 사용
 
     async function load() {
       setStatus("loading");
-      setData([]); // 빈 상태로 시작
+      setData([]);
 
       try {
         var res = await fetch(CSV_URL);
-        if(!res.ok) throw new Error("노은시장 데이터 로드 실패: " + res.status);
+        if(!res.ok) throw new Error("경락 데이터 로드 실패: " + res.status);
         var csv = await res.text();
         if(cancelled) return;
         var liveRows = parseCSV(csv);
-        // 전체 시장 데이터 사용 (노은 포함)
-        var liveNoeun = liveRows.filter(function(r){ return r.market.id === 8; });
-        var mockNoeun = mockData.filter(function(r){ return r.market.id === 8; });
-        var noeunRows = liveNoeun.length > 0 ? liveNoeun : mockNoeun;
-        var liveOthers = liveRows.filter(function(r){ return r.market.id !== 8; });
-        var allRows = noeunRows.concat(liveOthers);
-        // 중복 제거: 같은 경매일시+시장+법인+품목+경락가+산지 조합만 제거 (수량 다른 건 별도 행)
+
+        // 중복 제거: 완전히 동일한 행만 제거
         var seen = {};
-        var combined = allRows.filter(function(r){
+        var combined = liveRows.filter(function(r){
           var key = r.date+"_"+r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin;
           if(seen[key]) return false;
           seen[key] = true;
           return true;
         });
+
+        var noeunCount = combined.filter(function(r){ return r.market.id === 8; }).length;
         setData(combined);
-        setLiveCount(liveNoeun.length);
+        setLiveCount(noeunCount);
         setStatus("ok");
         setLastUpdated(new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}));
       } catch(e) {
