@@ -658,6 +658,7 @@ function RecordCard(props) {
       if(exists){ alert("이미 장바구니에 담긴 상품입니다."); return; }
       cart.push({
         itemKey: itemKey, no: no,
+        cardId: cartModal && cartModal.cardId,
         dealerName: info.name, dealerPhone: info.phone||"",
         itemName: (t["품목명"]||"").trim(),
         grade: (t["등급"]||"").trim(),
@@ -940,7 +941,7 @@ function RecordCard(props) {
                                 <button onClick={function(){
                                   if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
                                   setCartQty(1);
-                                  setCartModal({t:t, no:no, itemKey:itemKey, maxQty:parseInt(qty)||1});
+                                  setCartModal({t:t, no:no, itemKey:itemKey, maxQty:parseInt(qty)||1, cardId:r.id});
                                 }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
                                 <button onClick={function(){ window._chatDealer={no:dealerPrivate?"익명":no, tradeRow:t, chatType:"inquiry", anonymous:dealerPrivate}; setShowChat(true); }}
                                   style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
@@ -983,7 +984,7 @@ function RecordCard(props) {
                 setCartModal({
                   t:{"품목명":r.itemName,"등급":r.grade||"","산지명":r.origin||"","단가":String(r.price||0),"수량":String(r.qty||1),"중량":r.unit||""},
                   no:"corp", itemKey:itemKey, maxQty:r.qty||1,
-                  isAT:true, corpName:r.corp, market:r.market.name
+                  isAT:true, corpName:r.corp, market:r.market.name, cardId:r.id
                 });
               }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
               <button onClick={function(){
@@ -2310,7 +2311,7 @@ function App() {
   var cl3 = useState(false); var cartDone = cl3[0]; var setCartDone = cl3[1];
   var cl4 = useState(0); var cartCount = cl4[0]; var setCartCount = cl4[1];
   var cl5 = useState("pickup"); var cartPickup = cl5[0]; var setCartPickup = cl5[1];
-  var p1 = useState({}); var purchases = p1[0]; var setPurchases = p1[1];
+  var p1 = useState(function(){ try { return JSON.parse(localStorage.getItem("agro_sold_cards")||"{}"); } catch(e){ return {}; } }); var purchases = p1[0]; var setPurchases = p1[1];
   var pv1 = useState([]); var prevData = pv1[0]; var setPrevData = pv1[1];
 
   // 장바구니 결제 함수 - setPurchases 이후 정의 (참조 보장)
@@ -2339,7 +2340,13 @@ function App() {
       var n = Object.assign({}, prev);
       currentCart.forEach(function(c){
         n[c.itemKey] = {status:"완료", deposit:c.deposit, total:c.total, payMethod:cartPM};
+        // 카드 단위로도 sold-out 기록 (경락 검색에서 숨김 처리용)
+        if(c.cardId !== undefined && c.cardId !== null) {
+          n["soldcard_"+c.cardId] = {status:"완료"};
+        }
       });
+      // localStorage에도 영구 저장 (새로고침 후에도 유지)
+      try { localStorage.setItem("agro_sold_cards", JSON.stringify(n)); } catch(e){}
       return n;
     });
     setCartList([]);
@@ -2618,6 +2625,8 @@ function App() {
   }
 
   var filtered = activeData.filter(function(r){
+    // 결제 완료된 카드는 검색 결과에서 제외
+    if(purchases["soldcard_"+r.id] && purchases["soldcard_"+r.id].status==="완료") return false;
     // 대분류 품목 매칭
     if(filterItem && getRepItem(r.itemName) !== filterItem) return false;
     // 소분류 품목 매칭
