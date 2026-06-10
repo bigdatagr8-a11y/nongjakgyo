@@ -3057,8 +3057,10 @@ function App() {
             )}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <div>
-                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>등급</div>
-                <select value={filterGrade} onChange={function(e){setFilterGrade(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>
+                  등급 {filterMarket !== "대전 노은시장" && <span style={{fontSize:10,fontWeight:400,color:"#bbb"}}>(노은시장 전용)</span>}
+                </div>
+                <select value={filterGrade} onChange={function(e){setFilterGrade(e.target.value);}} disabled={filterMarket !== "대전 노은시장"} style={{width:"100%",border:"1.5px solid "+(filterMarket==="대전 노은시장"?"#bbf7d0":"#e5e7eb"),borderRadius:10,padding:"9px 10px",fontSize:13,background:filterMarket==="대전 노은시장"?"#f8fffe":"#f3f4f6",outline:"none",color:filterMarket==="대전 노은시장"?"#1a1a1a":"#aaa",cursor:filterMarket==="대전 노은시장"?"pointer":"not-allowed"}}>
                   <option value="">전체 등급</option>
                   {gradeList.map(function(g){return <option key={g} value={g}>{g}</option>;})}
                 </select>
@@ -3073,7 +3075,7 @@ function App() {
             </div>
             <div style={{marginBottom:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>도매시장</div>
-              <select value={filterMarket} onChange={function(e){setFilterMarket(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+              <select value={filterMarket} onChange={function(e){setFilterMarket(e.target.value); if(e.target.value !== "대전 노은시장") setFilterGrade("");}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
                 <option value="">전체 시장</option>
                 {marketList.map(function(m){return <option key={m} value={m}>{m}</option>;})}
               </select>
