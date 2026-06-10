@@ -1391,7 +1391,7 @@ function DealerMyPage(props) {
 
 // ── 메인 앱 ──
 function App() {
-  var t1 = useState("trade"); var tab = t1[0]; var setTab = t1[1];
+  var t1 = useState("search"); var tab = t1[0]; var setTab = t1[1];
   var f1 = useState(""); var filterItem = f1[0]; var setFilterItem = f1[1];
   var f2 = useState(""); var filterRegion = f2[0]; var setFilterRegion = f2[1];
   var f3 = useState(""); var keyword = f3[0]; var setKeyword = f3[1];
@@ -1660,7 +1660,7 @@ function App() {
 
           {/* 탭 */}
           <div style={{display:"flex",gap:2,paddingBottom:0}}>
-            {[["trade","📈 거래실적"],["search","🔍 경락"],["map","🗺️ 지도"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
+            {[["search","🔍 경락"],["map","🗺️ 지도"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
               var active = tab===t[0];
               return <button key={t[0]} onClick={function(){setTab(t[0]); if(t[0]==="mypage"&&!loginUser) setShowLogin(true);}} style={{flex:1,padding:"10px 0",border:"none",background:active?"rgba(255,255,255,0.15)":"transparent",color:active?"#fff":"rgba(255,255,255,0.55)",fontWeight:active?800:400,fontSize:10,cursor:"pointer",borderBottom:active?"2px solid #52b788":"2px solid transparent",borderRadius:"6px 6px 0 0"}}>
                 {t[1]}
