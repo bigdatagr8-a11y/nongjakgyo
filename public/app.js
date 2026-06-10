@@ -650,7 +650,8 @@ function RecordCard(props) {
     try {
       var uid = loginUser ? loginUser.id : "guest";
       var cart = JSON.parse(localStorage.getItem("agro_cart_"+uid)||"[]");
-      var info = getDealerInfo(no);
+      var isAT = cartModal && cartModal.isAT;
+      var info = isAT ? {name: cartModal.corpName||"법인", phone:""} : getDealerInfo(no);
       var price = parseInt((t["단가"]||"0").replace(/,/g,""))||0;
       var qty = selectedQty || 1;
       var weight = (t["중량"]||"").trim();
@@ -659,13 +660,14 @@ function RecordCard(props) {
       if(exists){ alert("이미 장바구니에 담긴 상품입니다."); return; }
       cart.push({
         itemKey: itemKey, no: no,
-        dealerName: info.name, dealerPhone: info.phone,
+        dealerName: info.name, dealerPhone: info.phone||"",
         itemName: (t["품목명"]||"").trim(),
         grade: (t["등급"]||"").trim(),
         origin: (t["산지명"]||"").trim(),
         weight: weight, qty: qty, price: price,
         deposit: deposit, total: price * qty,
         addedAt: new Date().toLocaleDateString("ko-KR"),
+        market: cartModal && cartModal.market,
       });
       localStorage.setItem("agro_cart_"+uid, JSON.stringify(cart));
       setCartCount(cart.length);
@@ -971,23 +973,20 @@ function RecordCard(props) {
               }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
               <button onClick={function(){
                 if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
-                // AT 카드 장바구니 담기 - 수량 선택 모달
+                var itemKey = "at_"+r.id;
                 try {
-                  var uid = loginUser.id;
-                  var cart = JSON.parse(localStorage.getItem("agro_cart_"+uid)||"[]");
-                  var itemKey = "at_"+r.id;
-                  if(cart.find(function(c){return c.itemKey===itemKey;})){
+                  var c = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]");
+                  if(c.find(function(x){return x.itemKey===itemKey;})){
                     alert("이미 장바구니에 담긴 상품입니다."); return;
                   }
-                  var selectedQty = parseInt(prompt("구매 수량을 입력하세요 (최대 "+r.qty+"개)", "1"))||1;
-                  if(selectedQty < 1) return;
-                  if(selectedQty > r.qty) selectedQty = r.qty;
-                  var price = r.price||0;
-                  var deposit = Math.max(5000, Math.round(price*selectedQty*0.1/1000)*1000);
-                  cart.push({itemKey:itemKey, no:"corp", dealerName:r.corp||"법인", dealerPhone:r.market.phone||"", itemName:r.itemName, grade:r.grade||"", origin:r.origin||"", weight:r.unit||"", qty:selectedQty, price:price, deposit:deposit, total:price*selectedQty, addedAt:new Date().toLocaleDateString("ko-KR"), market:r.market.name});
-                  localStorage.setItem("agro_cart_"+uid, JSON.stringify(cart));
-                  alert("🧺 장바구니에 담겼습니다!");
-                } catch(e){ alert("오류가 발생했습니다."); }
+                } catch(e){}
+                // AT 카드용 가상 tradeRow 생성해서 cartModal 재사용
+                setCartQty(1);
+                setCartModal({
+                  t:{"품목명":r.itemName,"등급":r.grade||"","산지명":r.origin||"","단가":String(r.price||0),"수량":String(r.qty||1),"중량":r.unit||""},
+                  no:"corp", itemKey:itemKey, maxQty:r.qty||1,
+                  isAT:true, corpName:r.corp, market:r.market.name
+                });
               }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
               <button onClick={function(){
                 window._chatDealer={no:"corp", tradeRow:null, chatType:"inquiry", isAT:true, corpName:r.corp, marketPhone:r.market.phone};
@@ -2293,6 +2292,10 @@ function App() {
   var l1 = useState(null); var loginUser = l1[0]; var setLoginUser = l1[1];
   var l2 = useState(false); var showLogin = l2[0]; var setShowLogin = l2[1];
   var l3 = useState(false); var showCart = l3[0]; var setShowCart = l3[1];
+  // 장바구니 모달 state (App 최상단에 있어야 React 규칙 준수)
+  var cl1 = useState([]); var cartList = cl1[0]; var setCartList = cl1[1];
+  var cl2 = useState(""); var cartPM = cl2[0]; var setCartPM = cl2[1];
+  var cl3 = useState(false); var cartDone = cl3[0]; var setCartDone = cl3[1];
   var p1 = useState({}); var purchases = p1[0]; var setPurchases = p1[1];
   var pv1 = useState([]); var prevData = pv1[0]; var setPrevData = pv1[1];
 
@@ -2661,7 +2664,16 @@ function App() {
                   var cartCount = 0;
                   try { cartCount = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]").length; } catch(e){}
                   return (
-                    <button onClick={function(){setShowCart(true);}} style={{background:showCart?"#FEE500":"rgba(255,165,0,0.25)",border:"1px solid rgba(255,165,0,0.5)",color:showCart?"#3A1D1D":"#fed7aa",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                    <button onClick={function(){
+                      // 열 때마다 localStorage 동기화
+                      try {
+                        var c = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]");
+                        setCartList(c);
+                      } catch(e){}
+                      setCartPM("");
+                      setCartDone(false);
+                      setShowCart(true);
+                    }} style={{background:showCart?"#FEE500":"rgba(255,165,0,0.25)",border:"1px solid rgba(255,165,0,0.5)",color:showCart?"#3A1D1D":"#fed7aa",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
                       🧺
                       {cartCount > 0 && <span style={{background:"#c2410c",color:"#fff",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:900}}>{cartCount}</span>}
                     </button>
@@ -2867,9 +2879,10 @@ function App() {
       {showCart && loginUser && loginUser.role==="buyer" && (function(){
         var cart = [];
         try { cart = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]"); } catch(e){}
-        var cartItems2 = useState(cart); var cartList = cartItems2[0]; var setCartList = cartItems2[1];
-        var cpmt3 = useState(""); var cartPM = cpmt3[0]; var setCartPM = cpmt3[1];
-        var cpd = useState(false); var cartDone = cpd[0]; var setCartDone = cpd[1];
+        // cartList가 비어있고 localStorage에 데이터 있으면 동기화
+        if(cartList.length === 0 && cart.length > 0 && !cartDone) {
+          setCartList(cart);
+        }
         var bal = parseInt(localStorage.getItem("agro_balance_"+loginUser.id)||"0");
         var totalDep = cartList.reduce(function(s,c){return s+(c.deposit||0);},0);
         var totalAmt = cartList.reduce(function(s,c){return s+(c.total||0);},0);
