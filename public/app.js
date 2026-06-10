@@ -1521,19 +1521,18 @@ function App() {
           };
         }).filter(function(r){ return r.itemName && r.price >= 1000; });
 
-        // 같은 품목+시장+법인+산지 그룹에서 중간가(median) 대표값 하나만 사용
+        // 품목+시장+법인+단위 기준으로 가장 최신 거래 하나만 사용
         var groups = {};
         liveRows.forEach(function(r){
-          var key = r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.origin+"_"+r.unit;
-          if(!groups[key]) groups[key] = [];
-          groups[key].push(r);
+          var key = r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.variety+"_"+r.unit;
+          if(!groups[key]) {
+            groups[key] = r;
+          } else {
+            // 더 최신 경매일시 우선
+            if(r.date > groups[key].date) groups[key] = r;
+          }
         });
-        var combined = Object.values(groups).map(function(rows){
-          // 가격 오름차순 정렬 후 중간값 선택 (이상치 제거 효과)
-          rows.sort(function(a,b){ return a.price - b.price; });
-          var mid = rows[Math.floor(rows.length / 2)];
-          return mid;
-        });
+        var combined = Object.keys(groups).map(function(k){ return groups[k]; });
 
         var noeunCount = combined.filter(function(r){ return r.market.id === 8; }).length;
         setData(combined);
