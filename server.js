@@ -5,8 +5,8 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const SHEET_ID_AUCTION = "1K41TJcxgJdttUCaDsiqTBB7aoJWtdQkJre5RC2vlUZc"; // 경락 데이터
-const SHEET_ID_TRADE   = "12hoIYD09CXIGW7nWIwhUQG8-EozrYrGjvJVW2kl8C_U"; // 거래실적
+const SHEET_ID_AUCTION = "1K41TJcxgJdttUCaDsiqTBB7aoJWtdQkJre5RC2vlUZc";
+const SHEET_ID_TRADE   = "12hoIYD09CXIGW7nWIwhUQG8-EozrYrGjvJVW2kl8C_U";
 const GID_AUCTION = "0";
 const GID_TRADE   = "802017948";
 
@@ -25,24 +25,98 @@ async function fetchSheet(sheetId, gid) {
     redirect: "follow",
   });
   if (!r.ok) throw new Error("Sheets 응답 오류: " + r.status);
-  // BOM 제거 후 반환
   let text = await r.text();
+  // BOM 제거
   text = text.replace(/^\uFEFF/, "");
   return text;
 }
 
-// ── 실시간 경매정보 (경락가) ──
+// CSV → JSON 파싱 (서버에서 처리)
+function parseAuctionCSV(csv) {
+  const lines = csv.trim().split("\n");
+  if (lines.length < 2) return [];
+
+  // 헤더 파싱 - 보이지 않는 문자 전부 제거
+  const headers = lines[0].split(",").map(h =>
+    h.replace(/[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FFa-zA-Z0-9]/g, "").trim()
+  );
+
+  console.log("[경락] 정제된 헤더:", headers.join(","));
+
+  const 경매일시Idx = headers.indexOf("경매일시");
+  const 도매시장Idx = headers.indexOf("도매시장");
+  const 법인Idx    = headers.indexOf("법인");
+  const 품목Idx    = headers.indexOf("품목");
+  const 품종Idx    = headers.indexOf("품종");
+  const 산지Idx    = headers.indexOf("산지");
+  const 수량Idx    = headers.indexOf("수량");
+  const 단위Idx    = headers.indexOf("단위");
+  const 경락가Idx  = headers.indexOf("경락가");
+
+  console.log("[경락] 경락가 인덱스:", 경락가Idx);
+
+  // 인덱스 못 찾으면 고정값 폴백
+  const IDX = {
+    경매일시: 경매일시Idx >= 0 ? 경매일시Idx : 0,
+    도매시장: 도매시장Idx >= 0 ? 도매시장Idx : 1,
+    법인:     법인Idx    >= 0 ? 법인Idx    : 2,
+    품목:     품목Idx    >= 0 ? 품목Idx    : 3,
+    품종:     품종Idx    >= 0 ? 품종Idx    : 4,
+    산지:     산지Idx    >= 0 ? 산지Idx    : 5,
+    수량:     수량Idx    >= 0 ? 수량Idx    : 6,
+    단위:     단위Idx    >= 0 ? 단위Idx    : 7,
+    경락가:   경락가Idx  >= 0 ? 경락가Idx  : 8,
+  };
+
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = [];
+    let cur = "", inQ = false;
+    for (let j = 0; j < lines[i].length; j++) {
+      const ch = lines[i][j];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ""; continue; }
+      cur += ch;
+    }
+    cols.push(cur.trim());
+
+    const itemName = (cols[IDX.품목] || "").trim();
+    const priceStr = (cols[IDX.경락가] || "").replace(/,/g, "").trim();
+    const price    = parseInt(priceStr) || 0;
+
+    if (!itemName || !price) continue;
+
+    // 2행 첫 파싱 시 로그
+    if (i === 1) {
+      console.log("[경락] 1번 데이터행 경락가 raw:", JSON.stringify(cols[IDX.경락가]), "→ parsed:", price);
+    }
+
+    records.push({
+      경매일시: (cols[IDX.경매일시] || "").split(" ")[0],
+      도매시장: (cols[IDX.도매시장] || "").trim(),
+      법인:     (cols[IDX.법인]    || "").trim(),
+      품목:     itemName,
+      품종:     (cols[IDX.품종]    || "").trim(),
+      산지:     (cols[IDX.산지]    || "").trim(),
+      수량:     parseInt((cols[IDX.수량] || "0").replace(/,/g, "")) || 0,
+      단위:     (cols[IDX.단위]    || "").trim(),
+      경락가:   price,
+    });
+  }
+
+  console.log("[경락] 파싱 완료:", records.length, "건, 샘플 경락가:", records[0] ? records[0].경락가 : "없음");
+  return records;
+}
+
+// ── 실시간 경매정보 → JSON으로 반환 ──
 app.get("/api/sheet", async (req, res) => {
   try {
     console.log("[경락] 데이터 가져오는 중...");
     const csv = await fetchAuctionWithBackup();
-    const lines = csv.trim().split("\n");
-    console.log("[경락] 완료:", lines.length, "행");
-    console.log("[경락] 헤더:", lines[0].substring(0, 150));
-    console.log("[경락] 2행:", lines[1] ? lines[1].substring(0, 150) : "없음");
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    const records = parseAuctionCSV(csv);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=300");
-    res.send(csv);
+    res.json(records);
   } catch (e) {
     console.error("[경락] 오류:", e.message);
     res.status(502).json({ ok: false, error: e.message });
@@ -51,24 +125,20 @@ app.get("/api/sheet", async (req, res) => {
 
 // ── 전일 경락가 ──
 app.get("/api/sheet/prev", async (req, res) => {
-  if (auctionPrevCache.csv) {
-    console.log("[전일경락] 백업 데이터 반환:", auctionPrevCache.date);
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache");
-    res.send(auctionPrevCache.csv);
+  if (auctionPrevCache.records && auctionPrevCache.records.length > 0) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.json(auctionPrevCache.records);
   } else {
     res.status(404).json({ ok: false, error: "전일 데이터 없음" });
   }
 });
 
-// ── 거래실적 ──
+// ── 거래실적 (CSV 그대로) ──
 app.get("/api/trade", async (req, res) => {
   try {
     console.log("[거래실적] 데이터 가져오는 중...");
     const csv = await fetchSheet(SHEET_ID_TRADE, GID_TRADE);
-    const lines = csv.trim().split("\n");
-    console.log("[거래실적] 완료:", lines.length, "행");
-    console.log("[거래실적] 헤더:", lines[0].substring(0, 150));
+    console.log("[거래실적] 완료:", csv.trim().split("\n").length, "행");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=300");
     res.send(csv);
@@ -78,7 +148,7 @@ app.get("/api/trade", async (req, res) => {
   }
 });
 
-// ── Claude API 프록시 (채팅용) ──
+// ── Claude API 프록시 ──
 app.post("/api/chat", async (req, res) => {
   try {
     const { messages, system } = req.body;
@@ -103,14 +173,13 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// ── 전일 경락 데이터 자동 백업 ──
-let auctionCache     = { date: "", csv: "" };
-let auctionPrevCache = { date: "", csv: "" };
+// ── 전일 경락 백업 ──
+let auctionCache     = { date: "", csv: "", records: [] };
+let auctionPrevCache = { date: "", csv: "", records: [] };
 
 async function fetchAuctionWithBackup() {
   const csv = await fetchSheet(SHEET_ID_AUCTION, GID_AUCTION);
   const lines = csv.trim().split("\n");
-  // 첫 데이터 행에서 날짜 추출 (col[0] = 경매일시)
   const today = lines.length > 1 ? (lines[1].split(",")[0] || "").split(" ")[0].trim() : "";
   if (today && auctionCache.date && today !== auctionCache.date) {
     auctionPrevCache = { ...auctionCache };
@@ -122,7 +191,7 @@ async function fetchAuctionWithBackup() {
   return csv;
 }
 
-// ── 구매예약 메모리 저장소 ──
+// ── 구매예약 ──
 const purchases = {};
 
 app.post("/api/purchase", (req, res) => {
@@ -132,35 +201,16 @@ app.post("/api/purchase", (req, res) => {
   if (purchases[key] && purchases[key].status === "완료") {
     return res.status(409).json({ ok: false, error: "이미 판매완료된 상품입니다" });
   }
-  purchases[key] = {
-    dealerNo, itemKey, buyer: buyer || "구매자",
-    itemName, grade, price, qty, unit, origin,
-    time: new Date().toISOString(),
-    status: "완료"
-  };
+  purchases[key] = { dealerNo, itemKey, buyer: buyer || "구매자", itemName, grade, price, qty, unit, origin, time: new Date().toISOString(), status: "완료" };
   console.log("[구매] 완료:", key, itemName, price);
   res.json({ ok: true, key });
 });
 
-app.get("/api/purchases", (req, res) => {
-  res.json({ ok: true, purchases });
-});
+app.get("/api/purchases", (req, res) => res.json({ ok: true, purchases }));
+app.delete("/api/purchase/:key", (req, res) => { delete purchases[req.params.key]; res.json({ ok: true }); });
 
-app.delete("/api/purchase/:key", (req, res) => {
-  delete purchases[req.params.key];
-  res.json({ ok: true });
-});
+app.get("/api/health", (req, res) => res.json({ ok: true, message: "농작교 서버 정상 가동 중", time: new Date().toISOString() }));
 
-// ── 서버 상태 ──
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true, message: "농작교 서버 정상 가동 중", time: new Date().toISOString() });
-});
+app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
-// ── SPA 폴백 ──
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🌿 농작교 서버 시작 | 포트: ${PORT}`);
-});
+app.listen(PORT, "0.0.0.0", () => console.log(`🌿 농작교 서버 시작 | 포트: ${PORT}`));
