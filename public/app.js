@@ -1519,6 +1519,8 @@ function App() {
             isMock: false,
             bidder: "", grade: "", shipperName: "", shipperPhone: "",
           };
+        }).filter(function(r){ return r.itemName && r.price >= 1000; });
+
         // 중복 제거
         var seen = {};
         var combined = liveRows.filter(function(r){
