@@ -1087,9 +1087,6 @@ function RecordCard(props) {
   );
 }
 
-// ── 지도 컴포넌트 ──
-  var onSelect = props.onSelect, selected = props.selected, data = props.data;
-  var ss = useState(null); var hover = ss[0]; var setHover = ss[1];
 
 var DEALER_INFO = {
   "11":  {name:"하귀봉", phone:"010-9297-5879"},
