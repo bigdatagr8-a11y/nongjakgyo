@@ -134,14 +134,18 @@ app.get("/api/sheet/prev", async (req, res) => {
   }
 });
 
-// ── 거래실적 (CSV 그대로) ──
+// ── 거래실적 (로컬 엑셀 데이터 - 구글시트 연동 해제) ──
 app.get("/api/trade", async (req, res) => {
   try {
-    console.log("[거래실적] 데이터 가져오는 중...");
-    const csv = await fetchSheet(SHEET_ID_TRADE, GID_TRADE);
-    console.log("[거래실적] 완료:", csv.trim().split("\n").length, "행");
+    const fs = require("fs");
+    const csvPath = path.join(__dirname, "public", "noeun_trade.csv");
+    if (!fs.existsSync(csvPath)) {
+      return res.status(404).json({ ok: false, error: "거래실적 파일 없음" });
+    }
+    const csv = fs.readFileSync(csvPath, "utf-8").replace(/^\uFEFF/, "");
+    console.log("[거래실적] 로컬 CSV 서빙:", csv.trim().split("\n").length, "행");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=300");
+    res.setHeader("Cache-Control", "public, max-age=3600");
     res.send(csv);
   } catch (e) {
     console.error("[거래실적] 오류:", e.message);
