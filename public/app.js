@@ -2325,9 +2325,14 @@ function ShippingCalcTab(props) {
 
   return (
     <div>
-      <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:20,padding:"20px",marginBottom:14,color:"#fff"}}>
+      <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:20,padding:"20px",marginBottom:14,color:"#fff",position:"relative"}}>
         <div style={{fontWeight:900,fontSize:17,marginBottom:4}}>🚚 배송 견적 계산기</div>
         <div style={{fontSize:12,color:"rgba(255,255,255,0.75)"}}>전국 도매시장 → 내 사업장까지 택배·화물 견적 비교</div>
+        {(items.length>0||result||fallbackSido) && <button onClick={function(){
+          setItems([]); setDraft({name:"",qty:"",kgEach:""}); setResult(null); setFallbackSido("");
+        }} style={{position:"absolute",top:14,right:14,background:"rgba(255,255,255,0.2)",color:"#fff",border:"1px solid rgba(255,255,255,0.4)",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+          🔄 초기화
+        </button>}
       </div>
 
       {isLoggedIn && bizAddr
@@ -3093,6 +3098,12 @@ function App() {
                 {filterItem||keyword||filterRegion ? (filterItem||keyword||filterRegion) : "전체 품목"} 검색결과 <span style={{color:G.mid}}>{filtered.length}건</span>
                 <span style={{fontSize:11,color:"#aaa",fontWeight:400,marginLeft:6}}>({dateFilter==="yesterday"?(prevDate||"전일 데이터 없음"):latestDate})</span>
               </div>
+              <button onClick={function(){
+                setFilterItem(""); setFilterGrade(""); setFilterUnit(""); setFilterSubItem("");
+                setFilterRegion(""); setFilterMarket(""); setFilterCategory(""); setKeyword(""); setSortBy("price");
+              }} style={{background:"#f3f4f6",color:"#555",border:"1px solid #e5e7eb",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
+                🔄 필터 초기화
+              </button>
             </div>
 
             <div style={{display:"flex",gap:6,marginBottom:12}}>
