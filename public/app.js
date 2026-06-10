@@ -1045,12 +1045,91 @@ function RecordCard(props) {
                           <div style={{fontSize:22,fontWeight:900,color:"#3A1D1D"}}>kakao pay</div>
                           <div style={{fontSize:12,color:"#3A1D1D",marginTop:4,opacity:0.7}}>카카오페이로 간편결제</div>
                         </div>
-                        <div style={{background:"#f9f9f9",borderRadius:8,padding:"12px",marginBottom:10}}>
-                          <div style={{fontSize:10,color:"#888",marginBottom:6}}>QR코드로 결제</div>
-                          <div style={{width:100,height:100,margin:"0 auto",background:"#fff",border:"2px solid #ddd",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>
-                            📱
+                        <div style={{background:"#f9f9f9",borderRadius:8,padding:"12px",marginBottom:10,textAlign:"center"}}>
+                          <div style={{fontSize:10,color:"#888",marginBottom:8}}>QR코드로 결제</div>
+                          <div style={{display:"inline-block",background:"#fff",padding:8,borderRadius:8,border:"1px solid #e5e7eb"}}>
+                            <svg width="140" height="140" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+                              {/* 배경 */}
+                              <rect width="140" height="140" fill="white"/>
+                              {/* 좌상단 파인더 패턴 */}
+                              <rect x="8" y="8" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/>
+                              <rect x="15" y="15" width="21" height="21" fill="#1a1a1a"/>
+                              {/* 우상단 파인더 패턴 */}
+                              <rect x="97" y="8" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/>
+                              <rect x="104" y="15" width="21" height="21" fill="#1a1a1a"/>
+                              {/* 좌하단 파인더 패턴 */}
+                              <rect x="8" y="97" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/>
+                              <rect x="15" y="104" width="21" height="21" fill="#1a1a1a"/>
+                              {/* 데이터 모듈들 (랜덤패턴처럼 보이도록) */}
+                              <rect x="50" y="8" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="60" y="8" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="75" y="8" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="85" y="8" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="18" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="65" y="18" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="80" y="18" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="28" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="60" y="28" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="70" y="28" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="85" y="28" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="55" y="38" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="75" y="38" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="8" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="18" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="33" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="65" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="75" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="90" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="110" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="127" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="8" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="23" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="38" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="55" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="70" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="85" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="100" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="115" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="13" y="70" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="28" y="70" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="70" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="65" y="70" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="80" y="70" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="95" y="70" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="120" y="70" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="8" y="80" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="33" y="80" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="55" y="80" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="70" y="80" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="90" y="80" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="110" y="80" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="127" y="80" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="90" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="60" y="90" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="80" y="90" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="100" y="90" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="120" y="90" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="110" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="65" y="110" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="80" y="110" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="100" y="110" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="115" y="110" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="127" y="110" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="55" y="120" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="70" y="120" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="90" y="120" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="110" y="120" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="55" y="127" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="75" y="127" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="95" y="127" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="120" y="127" width="5" height="5" fill="#1a1a1a"/>
+                              {/* 카카오 로고 중앙 */}
+                              <rect x="57" y="57" width="26" height="26" rx="4" fill="#FEE500"/>
+                              <text x="70" y="75" textAnchor="middle" fontSize="14" fontWeight="900" fill="#3A1D1D">K</text>
+                            </svg>
                           </div>
-                          <div style={{fontSize:10,color:"#aaa",marginTop:6}}>카카오톡 → 더보기 → 페이 → QR결제</div>
+                          <div style={{fontSize:10,color:"#aaa",marginTop:8}}>카카오톡 → 더보기 → 페이 → QR결제</div>
                         </div>
                         <div style={{fontSize:11,color:"#555",background:"#fffde7",borderRadius:8,padding:"8px 12px"}}>
                           결제금액: <b style={{color:"#1a1a1a"}}>{deposit.toLocaleString()}원</b>
@@ -1516,7 +1595,27 @@ function BuyerMyPage(props) {
 
                         {chargePay==="kakao" && <div style={{background:"#FEE500",borderRadius:10,padding:"14px",marginTop:8,textAlign:"center"}}>
                           <div style={{fontSize:18,fontWeight:900,color:"#3A1D1D"}}>kakao pay</div>
-                          <div style={{width:80,height:80,margin:"8px auto",background:"#fff",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>📱</div>
+                          <div style={{display:"inline-block",background:"#fff",padding:6,borderRadius:8,margin:"8px auto"}}>
+                            <svg width="100" height="100" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+                              <rect width="140" height="140" fill="white"/>
+                              <rect x="8" y="8" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/>
+                              <rect x="15" y="15" width="21" height="21" fill="#1a1a1a"/>
+                              <rect x="97" y="8" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/>
+                              <rect x="104" y="15" width="21" height="21" fill="#1a1a1a"/>
+                              <rect x="8" y="97" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/>
+                              <rect x="15" y="104" width="21" height="21" fill="#1a1a1a"/>
+                              <rect x="50" y="8" width="5" height="5" fill="#1a1a1a"/><rect x="60" y="8" width="5" height="5" fill="#1a1a1a"/><rect x="75" y="8" width="5" height="5" fill="#1a1a1a"/><rect x="85" y="8" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="18" width="5" height="5" fill="#1a1a1a"/><rect x="65" y="18" width="5" height="5" fill="#1a1a1a"/><rect x="80" y="18" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="28" width="5" height="5" fill="#1a1a1a"/><rect x="60" y="28" width="5" height="5" fill="#1a1a1a"/><rect x="70" y="28" width="5" height="5" fill="#1a1a1a"/><rect x="85" y="28" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="8" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="23" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="50" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="65" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="85" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="110" y="50" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="13" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="38" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="55" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="75" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="100" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="120" y="60" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="8" y="70" width="5" height="5" fill="#1a1a1a"/><rect x="28" y="70" width="5" height="5" fill="#1a1a1a"/><rect x="55" y="70" width="5" height="5" fill="#1a1a1a"/><rect x="80" y="70" width="5" height="5" fill="#1a1a1a"/><rect x="110" y="70" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="50" y="100" width="5" height="5" fill="#1a1a1a"/><rect x="70" y="100" width="5" height="5" fill="#1a1a1a"/><rect x="90" y="100" width="5" height="5" fill="#1a1a1a"/><rect x="115" y="100" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="55" y="115" width="5" height="5" fill="#1a1a1a"/><rect x="80" y="115" width="5" height="5" fill="#1a1a1a"/><rect x="100" y="115" width="5" height="5" fill="#1a1a1a"/><rect x="127" y="115" width="5" height="5" fill="#1a1a1a"/>
+                              <rect x="57" y="57" width="26" height="26" rx="4" fill="#FEE500"/>
+                              <text x="70" y="75" textAnchor="middle" fontSize="14" fontWeight="900" fill="#3A1D1D">K</text>
+                            </svg>
+                          </div>
                           <div style={{fontSize:10,color:"#3A1D1D",opacity:0.7}}>카카오톡 → 페이 → QR결제</div>
                         </div>}
 
