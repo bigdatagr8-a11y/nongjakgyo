@@ -467,6 +467,7 @@ function ChatModal(props) {
   var onClose = props.onClose, record = props.record, tradeRow = props.tradeRow;
   var chatType = (window._chatDealer && window._chatDealer.chatType) || "chat";
   var isAnonymous = !!(window._chatDealer && window._chatDealer.anonymous);
+  var isAT = !!(window._chatDealer && window._chatDealer.isAT);
   var ms = useState([]); var messages = ms[0]; var setMessages = ms[1];
   var is = useState(false); var isLoading = is[0]; var setIsLoading = is[1];
   var inp = useState(""); var input = inp[0]; var setInput = inp[1];
@@ -474,8 +475,10 @@ function ChatModal(props) {
 
   var dealerNo = String((tradeRow && tradeRow["낙찰 중도매인"]) || record.bidder || "").trim();
   var dealerLookup = getDealerInfo(dealerNo);
-  var bidderName = isAnonymous ? "익명 중도매인" : dealerLookup.name;
-  var bidderPhone = isAnonymous ? "" : ((tradeRow && tradeRow["중도매인 연락처"]) || dealerLookup.phone || "");
+  var bidderName = isAT ? (window._chatDealer&&window._chatDealer.corpName)||record.corp||"법인"
+                 : isAnonymous ? "익명 중도매인" : dealerLookup.name;
+  var bidderPhone = isAT ? (window._chatDealer&&window._chatDealer.marketPhone)||record.market.phone||""
+                  : isAnonymous ? "" : ((tradeRow && tradeRow["중도매인 연락처"]) || dealerLookup.phone || "");
   var itemName = (tradeRow && tradeRow["품목명"]) || record.fullName || record.itemName;
   var origin = (tradeRow && tradeRow["산지명"]) || record.origin || "";
   var price = parseInt((tradeRow && tradeRow["단가"]) || record.price) || 0;
@@ -486,7 +489,11 @@ function ChatModal(props) {
   // 첫 인사 메시지 - 타입별 분기
   useEffect(function(){
     var initMsg = "";
-    if(chatType === "buy") {
+    if(isAT) {
+      initMsg = "안녕하세요! "+record.market.name+" "+bidderName+"입니다. "
+        +record.itemName+(record.origin?" ("+record.origin+"산)":"")+" 상품 문의 주셨군요! "
+        +"구매 수량이나 배송 관련 궁금하신 점 말씀해 주세요.";
+    } else if(chatType === "buy") {
       initMsg = "안녕하세요! 저는 대전 노은시장 중도매인 "+bidderName+"입니다. "
         +itemName+(origin?" ("+origin+"산)":"")+" "+grade+"등급 구매 문의 주셨군요! "
         +"오늘 낙찰가는 "+price.toLocaleString()+"원/"+unit+", 수량은 "+qty+unit+" 입니다. "
@@ -535,7 +542,7 @@ function ChatModal(props) {
                 {chatType==="buy"?"🛒 구매 문의":chatType==="inquiry"?"❓ 상품 문의":"💬 중도매인 채팅"}
               </div>
               <div style={{color:"#fff",fontWeight:800,fontSize:15,marginTop:2}}>
-                {bidderName} <span style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:400}}>· 대전 노은시장</span>
+                {bidderName} <span style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:400}}>· {isAT ? record.market.name : "대전 노은시장"}</span>
               </div>
               <div style={{display:"flex",gap:8,marginTop:4,alignItems:"center",flexWrap:"wrap"}}>
                 <span style={{background:"rgba(74,222,128,0.2)",color:"#4ade80",fontSize:10,borderRadius:20,padding:"2px 8px"}}>{itemName}{grade?" · "+grade+"등급":""}{price?" · "+price.toLocaleString()+"원":""}</span>
@@ -882,23 +889,32 @@ function RecordCard(props) {
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:10,color:"#aaa"}}>🕐 {r.date}</div>
           <div style={{display:"flex",gap:6}}>
-            {r.market.phone
-              ? <a href={"tel:"+r.market.phone} style={{background:"#f0fdf4",color:G.mid,border:"1px solid #bbf7d0",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,textDecoration:"none"}}>📞 {r.market.phone}</a>
-              : <span style={{background:"#f3f4f6",color:"#bbb",border:"1px solid #e5e7eb",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700}}>📞 번호 입력 예정</span>
-            }
-            <button style={{background:G.mid,color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}} onClick={function(){alert("거래 문의는 해당 도매시장 법인("+r.corp+")에 직접 연락하세요.\n"+(r.market.phone?"📞 "+r.market.phone:"📞 연락처 등록 예정")+"\n🏛️ "+r.market.name);}}>거래하기</button>
+            {r.market.id !== 8 && <>
+              <button onClick={function(){
+                if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
+                setBuyQty(1);
+                setPayModal({no:"corp", tradeRow:null, itemKey:"at_"+r.id, maxQty:r.qty||1, isAT:true});
+              }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+              <button onClick={function(){
+                window._chatDealer={no:"corp", tradeRow:null, chatType:"inquiry", isAT:true, corpName:r.corp, marketPhone:r.market.phone};
+                setShowChat(true);
+              }} style={{background:"#f0fdf4",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
+            </>}
           </div>
         </div>
 
         {showChat && <ChatModal record={r} tradeRow={window._chatDealer ? window._chatDealer.tradeRow : chatTradeRow} onClose={function(){setShowChat(false); window._chatDealer=null;}}/>}
         {payModal && (function(){
           var t = payModal.tradeRow;
+          var isAT = payModal.isAT;
           var itemName = (t&&t["품목명"]) || r.itemName;
-          var grade = (t&&t["등급"]) || "";
+          var grade = (t&&t["등급"]) || r.grade || "";
           var price = parseInt((t&&t["단가"])||r.price)||0;
           var maxQty = payModal.maxQty || parseInt((t&&t["수량"])||r.qty) || 1;
           var origin = (t&&t["산지명"]) || r.origin;
-          var dealerInfo = getDealerInfo(payModal.no);
+          var dealerInfo = isAT
+            ? {name: r.corp || "법인", phone: r.market.phone || ""}
+            : getDealerInfo(payModal.no);
           var safeQty = Math.max(1, Math.min(buyQty, maxQty));
           var total = price * safeQty;
           var deposit = Math.max(5000, Math.round(total * 0.1 / 1000) * 1000);
@@ -908,7 +924,7 @@ function RecordCard(props) {
                 <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",padding:"16px"}}>
                   <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>🛒 구매예약 · 보증금 결제</div>
                   <div style={{color:"#fff",fontWeight:800,fontSize:16,marginTop:4}}>{itemName} {grade&&"· "+grade+"등급"}</div>
-                  <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>중도매인 {dealerInfo.name} · 대전 노은시장</div>
+                  <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>{isAT ? r.market.name+" · "+r.corp : "중도매인 "+dealerInfo.name+" · 대전 노은시장"}</div>
                 </div>
                 <div style={{padding:"16px"}}>
                   <div style={{background:"#f8fffe",borderRadius:12,padding:"14px",marginBottom:12}}>
