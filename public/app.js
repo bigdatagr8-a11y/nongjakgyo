@@ -301,6 +301,14 @@ function makeMockData() {
 function parseCSV(csvText) {
   var lines = csvText.trim().split("\n");
   if(lines.length < 2) return [];
+
+  // 헤더로 컬럼 인덱스 자동 매핑 (시트 컬럼 순서 변경에도 안전)
+  var rawHeaders = lines[0].split(",").map(function(h){ return h.trim().replace(/"/g,""); });
+  function col(row, name) {
+    var idx = rawHeaders.indexOf(name);
+    return idx >= 0 ? (row[idx]||"").trim() : "";
+  }
+
   var records = [];
   for(var i = 1; i < lines.length; i++) {
     var line = lines[i];
@@ -314,27 +322,28 @@ function parseCSV(csvText) {
     }
     cols.push(cur.trim());
 
-    if(cols.length < 9) continue;
-    var dateStr  = (cols[0]||"").split(" ")[0];  // 경매일시 → 날짜만 추출
-    var mktName  = cols[1]||"";
-    var corpName = cols[2]||"";
-    var itemName = cols[3]||"";
-    var variety  = cols[4]||"";
-    var origin   = cols[5]||"";
-    var qty      = parseInt((cols[6]||"").replace(/,/g,""))||0;
-    var unit     = cols[7]||"";
-    var price    = parseInt((cols[8]||"").replace(/,/g,""))||0;
+    // 헤더 기반으로 각 컬럼 읽기
+    // 시트 구조: 경매일자/번호/NO/출하자/산지명/출하처/품목/중량/등급/크기/수량/단가/금액/낙찰 중도매인/구분/경매시간/매매일자/응찰단가/품목명
+    var dateStr      = col(cols, "경매일자").replace(/\s.*$/,"");  // 날짜만
+    var itemName     = (col(cols, "품목명") || col(cols, "품목")).trim();
+    var origin       = col(cols, "산지명");
+    var corpName     = col(cols, "출하처");
+    var shipperName  = col(cols, "출하자");
+    var weight       = col(cols, "중량");   // kg
+    var grade        = col(cols, "등급");
+    var size         = col(cols, "크기");
+    var qty          = parseInt(col(cols, "수량").replace(/,/g,"")) || 0;
+    var price        = parseInt(col(cols, "단가").replace(/,/g,"")) || 0;
+    var amount       = parseInt(col(cols, "금액").replace(/,/g,"")) || 0;
+    var bidder       = col(cols, "낙찰 중도매인");
+    var auctionTime  = col(cols, "경매시간");
 
-    if(!itemName || !price) continue;
+    // 소계/합계 행 또는 유효하지 않은 행 제외
+    if(!itemName || itemName.includes("소계") || itemName.includes("합계")) continue;
+    if(!price) continue;
 
-    var market = getMarket(mktName);
-    var fullName = variety && variety !== itemName ? itemName+"("+variety+")" : itemName;
-
-    // 노은시장 추가 컬럼 (스프레드시트에 추가 예정: cols[9]~cols[12])
-    var bidder       = cols[9]  || "";   // 낙찰자명
-    var grade        = cols[10] || "";   // 등급 (특/상/보통)
-    var shipperName  = cols[11] || "";   // 출하자명
-    var shipperPhone = cols[12] || "";   // 출하자 연락처
+    var market = {id:8, name:"대전 노은시장", region:"대전", sheetName:"대전노은", phone:"", corp:"중부청과"};
+    var fullName = itemName;
 
     records.push({
       id: i,
@@ -342,19 +351,23 @@ function parseCSV(csvText) {
       market: market,
       itemName: itemName,
       fullName: fullName,
-      variety: variety,
+      variety: size || "",
       origin: origin,
       qty: qty,
-      unit: unit,
+      unit: weight ? weight+"kg" : "개",
+      weight: weight,
+      size: size,
       price: price,
-      corp: corpName,
+      amount: amount,
+      corp: corpName || "중부청과",
       emoji: getEmoji(itemName),
       category: getCategory(itemName),
       isMock: false,
       bidder: bidder,
       grade: grade,
       shipperName: shipperName,
-      shipperPhone: shipperPhone,
+      shipperPhone: "",
+      auctionTime: auctionTime,
     });
   }
   return records;
@@ -774,8 +787,9 @@ function RecordCard(props) {
                   {Object.keys(dealerGroups).map(function(no){
                     var trades = dealerGroups[no];
                     var info = getDealerInfo(no);
-                    var avgPrice = Math.round(trades.reduce(function(s,t){return s+(parseInt(t["단가"])||0);},0)/trades.length);
-                    var totalQty = trades.reduce(function(s,t){return s+(parseInt(t["수량"])||0);},0);
+                    var avgPrice = Math.round(trades.reduce(function(s,t){return s+(t.price||0);},0)/trades.length);
+                    var totalQty = trades.reduce(function(s,t){return s+(t.qty||0);},0);
+                    var totalWeight = trades.reduce(function(s,t){return s+(parseFloat(t.weight||0)*(t.qty||0));},0);
                     return (
                       <div key={no} style={{border:"1px solid #bfdbfe",borderRadius:12,overflow:"hidden"}}>
                         {/* 중도매인 헤더 */}
@@ -785,49 +799,85 @@ function RecordCard(props) {
                             <span style={{color:"#93c5fd",fontSize:10,marginLeft:6}}>#{no}</span>
                             {info.phone && <a href={"tel:"+info.phone} style={{color:"#86efac",fontSize:10,marginLeft:8,textDecoration:"none"}}>📞 {info.phone}</a>}
                           </div>
-                          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                            <span style={{color:"#bfdbfe",fontSize:10}}>{trades.length}건 · 평균 {avgPrice.toLocaleString()}원</span>
+                          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                            <span style={{color:"#bfdbfe",fontSize:10}}>{trades.length}건 · 평균 {avgPrice.toLocaleString()}원 · {totalQty}개 / {totalWeight>0?totalWeight.toLocaleString()+"kg":"-"}</span>
                             <button onClick={function(){setShowChat(true); window._chatDealer={no:no,tradeRow:trades[0]};}} style={{background:"#2563eb",color:"#fff",border:"none",borderRadius:20,padding:"4px 10px",fontSize:10,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
                           </div>
                         </div>
                         {/* 거래 내역 */}
                         <div style={{overflowX:"auto"}}>
-                          <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:360}}>
+                          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:480}}>
                             <thead>
-                              <tr style={{background:"#eff6ff"}}>
-                                {["경매시간","산지명","등급","수량","단가","금액","문의"].map(function(h){return(
-                                  <th key={h} style={{padding:"5px 7px",color:"#1e40af",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
+                              <tr style={{background:"#1e3a8a"}}>
+                                {[
+                                  {label:"경매시간", sub:null},
+                                  {label:"산지명",   sub:null},
+                                  {label:"등급",     sub:null},
+                                  {label:"크기",     sub:null},
+                                  {label:"중량",     sub:"(박스)"},
+                                  {label:"수량",     sub:"(개)"},
+                                  {label:"단가",     sub:"(박스)"},
+                                  {label:"kg당",     sub:"단가"},
+                                  {label:"문의",     sub:null},
+                                ].map(function(h){return(
+                                  <th key={h.label} style={{padding:"7px 8px",color:"#bfdbfe",fontWeight:700,textAlign:"left",whiteSpace:"nowrap",fontSize:10}}>
+                                    {h.label}
+                                    {h.sub && <div style={{color:"#93c5fd",fontWeight:400,fontSize:9,marginTop:1}}>{h.sub}</div>}
+                                  </th>
                                 );})}
                               </tr>
                             </thead>
                             <tbody>
-                              {trades.map(function(t,i){return(
-                                <tr key={i} style={{background:i%2===0?"#fff":"#f8faff",borderBottom:"1px solid #e0e7ff"}}>
-                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["경매시간"]||"-"}</td>
-                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333"}}>{t["산지명"]||"-"}</td>
-                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap"}}>
-                                    <span style={{background:"#fef9c3",color:"#854d0e",borderRadius:6,padding:"1px 5px",fontWeight:700}}>{(t["등급"]||"-").trim()}</span>
+                              {trades.map(function(t,i){
+                                var kgPerBox = parseFloat(t.weight||0);
+                                var kgPrice = (kgPerBox > 0 && t.price) ? Math.round(t.price / kgPerBox) : null;
+                                var gradeColor = {
+                                  "특":  {bg:"#fef9c3", color:"#854d0e"},
+                                  "상":  {bg:"#dbeafe", color:"#1e40af"},
+                                  "보통":{bg:"#f3f4f6", color:"#555"},
+                                  "1":   {bg:"#fef9c3", color:"#854d0e"},
+                                  "2":   {bg:"#dbeafe", color:"#1e40af"},
+                                  "3":   {bg:"#f3f4f6", color:"#555"},
+                                }[t.grade||""] || {bg:"#f3f4f6", color:"#555"};
+                                return (
+                                <tr key={i} style={{background:i%2===0?"#fff":"#f8faff",borderBottom:"1px solid #e8edf8",transition:"background 0.15s"}}
+                                  onMouseEnter={function(e){e.currentTarget.style.background="#eff6ff";}}
+                                  onMouseLeave={function(e){e.currentTarget.style.background=i%2===0?"#fff":"#f8faff";}}>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#64748b",fontSize:10,fontVariantNumeric:"tabular-nums"}}>{t.auctionTime||"-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:500}}>{t.origin||"-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
+                                    {t.grade
+                                      ? <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:6,padding:"2px 7px",fontWeight:700,fontSize:10}}>{t.grade}</span>
+                                      : <span style={{color:"#ccc"}}>-</span>}
                                   </td>
-                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#333"}}>{t["수량"]||"-"}</td>
-                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:G.mid,fontWeight:700}}>{t["단가"]?parseInt(t["단가"]).toLocaleString()+"원":"-"}</td>
-                                  <td style={{padding:"5px 7px",whiteSpace:"nowrap",color:"#555"}}>{t["금액"]?parseInt(t["금액"]).toLocaleString()+"원":"-"}</td>
-                                  <td style={{padding:"4px 6px",whiteSpace:"nowrap"}}>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#475569",fontSize:10}}>{t.size||"-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:600}}>{t.weight ? t.weight+"kg" : "-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b"}}>{t.qty ? t.qty+"개" : "-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
+                                    <span style={{color:G.mid,fontWeight:700}}>{t.price ? t.price.toLocaleString()+"원" : "-"}</span>
+                                  </td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
+                                    {kgPrice
+                                      ? <span style={{background:"#ecfdf5",color:"#065f46",borderRadius:6,padding:"2px 7px",fontWeight:700,fontSize:10}}>{kgPrice.toLocaleString()}원</span>
+                                      : <span style={{color:"#ccc"}}>-</span>}
+                                  </td>
+                                  <td style={{padding:"6px 7px",whiteSpace:"nowrap"}}>
                                     {(function(){
-                                      var itemKey = no+"_"+(t["경매시간"]||i);
+                                      var itemKey = no+"_"+(t.auctionTime||i);
                                       var pKey = no+"_"+itemKey;
                                       var isSold = purchases[pKey] && purchases[pKey].status === "완료";
                                       if(isSold) return (
                                         <span style={{background:"#fee2e2",color:"#991b1b",borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:700}}>판매완료</span>
                                       );
                                       return (
-                                        <div style={{display:"flex",gap:4}}>
+                                        <div style={{display:"flex",gap:3}}>
                                           <button onClick={function(){
                                             setPayModal({no:no, tradeRow:t, itemKey:itemKey});
-                                          }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:6,padding:"3px 7px",fontSize:10,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+                                          }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🛒 예약</button>
                                           <button onClick={function(){
                                             window._chatDealer={no:no, tradeRow:t, chatType:"inquiry"};
                                             setShowChat(true);
-                                          }} style={{background:"#f0fdf4",color:"#166534",border:"1px solid #bbf7d0",borderRadius:6,padding:"3px 7px",fontSize:10,fontWeight:700,cursor:"pointer"}}>❓ 문의</button>
+                                          }} style={{background:"#f0fdf4",color:"#166534",border:"1px solid #bbf7d0",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>❓</button>
                                         </div>
                                       );
                                     })()}
