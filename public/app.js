@@ -623,9 +623,10 @@ function RecordCard(props) {
   var purchases = props.purchases || {}, setPurchases = props.setPurchases || function(){};
   var loginUser = props.loginUser;
   var sortBy = props.sortBy || "price";
+  var setCartCount = props.setCartCount || function(){};
   var isTop = rank === 1;
 
-  // 실속가순일 때 배송비 계산 (출발: 시장 지역 → 도착: 구매자 사업장)
+  // 실속가순일 때 배송비 계산
   var shippingInfo = null;
   if(sortBy === "smart") {
     var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
@@ -639,12 +640,9 @@ function RecordCard(props) {
   var pp = useState(false); var payDone = pp[0]; var setPayDone = pp[1];
   var pmt = useState(""); var payMethod = pmt[0]; var setPayMethod = pmt[1];
   var buyQtyS = useState(1); var buyQty = buyQtyS[0]; var setBuyQty = buyQtyS[1];
-  // 장바구니 수량 선택 모달
+  var pku = useState("pickup"); var pickupMethod = pku[0]; var setPickupMethod = pku[1];
   var cms = useState(null); var cartModal = cms[0]; var setCartModal = cms[1];
   var cqty = useState(1); var cartQty = cqty[0]; var setCartQty = cqty[1];
-  // 장바구니 카운트 (헤더 뱃지용)
-  var ccs = useState(function(){ try { return JSON.parse(localStorage.getItem("agro_cart_"+(loginUser&&loginUser.id||"guest"))||"[]").length; } catch(e){ return 0; } });
-  var cartCount = ccs[0]; var setCartCount = ccs[1];
 
   function addToCart(t, no, itemKey, selectedQty) {
     try {
@@ -1112,6 +1110,20 @@ function RecordCard(props) {
                     </div>
                   </div>
                   {!payDone && <div style={{background:"#f9fafb",borderRadius:12,padding:"12px",marginBottom:12}}>
+                    {/* 수령방법 선택 */}
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>수령 방법</div>
+                    <div style={{display:"flex",gap:8,marginBottom:14}}>
+                      {[["pickup","🏃 직접 수령"],["delivery","🚚 배송 요청"]].map(function(opt){
+                        var sel = pickupMethod===opt[0];
+                        return <button key={opt[0]} onClick={function(){setPickupMethod(opt[0]);}}
+                          style={{flex:1,padding:"9px 0",background:sel?"#0d2b1a":"#fff",color:sel?"#4ade80":"#555",border:"1.5px solid "+(sel?"#2d6a4f":"#e5e7eb"),borderRadius:10,fontSize:12,fontWeight:sel?700:400,cursor:"pointer"}}>
+                          {opt[1]}
+                        </button>;
+                      })}
+                    </div>
+                    {pickupMethod==="delivery" && <div style={{background:"#f0fdf4",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#065f46"}}>
+                      📍 배송지: {(function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizAddr||"마이페이지에서 주소를 입력해주세요"; } catch(e){ return "주소 없음"; } })()}
+                    </div>}
                     <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단 선택</div>
                     {[["balance","💰 예치금 결제"],["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
                       var selected = payMethod === pm[0];
@@ -2296,6 +2308,8 @@ function App() {
   var cl1 = useState([]); var cartList = cl1[0]; var setCartList = cl1[1];
   var cl2 = useState(""); var cartPM = cl2[0]; var setCartPM = cl2[1];
   var cl3 = useState(false); var cartDone = cl3[0]; var setCartDone = cl3[1];
+  var cl4 = useState(0); var cartCount = cl4[0]; var setCartCount = cl4[1];
+  var cl5 = useState("pickup"); var cartPickup = cl5[0]; var setCartPickup = cl5[1];
   var p1 = useState({}); var purchases = p1[0]; var setPurchases = p1[1];
   var pv1 = useState([]); var prevData = pv1[0]; var setPrevData = pv1[1];
 
@@ -2838,7 +2852,7 @@ function App() {
                 </div>
               : <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   {filtered.slice(0, 100).map(function(r, idx){
-                    return <RecordCard key={r.id} record={r} rank={idx+1} tradeData={tradeData} purchases={purchases} setPurchases={setPurchases} loginUser={loginUser} sortBy={sortBy}/>;
+                    return <RecordCard key={r.id} record={r} rank={idx+1} tradeData={tradeData} purchases={purchases} setPurchases={setPurchases} loginUser={loginUser} sortBy={sortBy} setCartCount={setCartCount}/>;
                   })}
                   {filtered.length > 100 && <div style={{textAlign:"center",padding:"12px",fontSize:12,color:"#888"}}>상위 100건 표시 중 · 검색어로 필터링하세요</div>}
                 </div>
@@ -2978,6 +2992,20 @@ function App() {
                     </div>
                   </div>
                   <div style={{marginBottom:12}}>
+                    {/* 수령방법 */}
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>수령 방법</div>
+                    <div style={{display:"flex",gap:8,marginBottom:12}}>
+                      {[["pickup","🏃 직접 수령"],["delivery","🚚 배송 요청"]].map(function(opt){
+                        var sel = cartPickup===opt[0];
+                        return <button key={opt[0]} onClick={function(){setCartPickup(opt[0]);}}
+                          style={{flex:1,padding:"9px 0",background:sel?"#0d2b1a":"#fff",color:sel?"#4ade80":"#555",border:"1.5px solid "+(sel?"#2d6a4f":"#e5e7eb"),borderRadius:10,fontSize:12,fontWeight:sel?700:400,cursor:"pointer"}}>
+                          {opt[1]}
+                        </button>;
+                      })}
+                    </div>
+                    {cartPickup==="delivery" && <div style={{background:"#f0fdf4",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#065f46"}}>
+                      📍 배송지: {(function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizAddr||"마이페이지에서 주소를 입력해주세요"; } catch(e){ return "주소 없음"; } })()}
+                    </div>}
                     <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단</div>
                     {[["balance","💰 예치금 결제"],["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
                       var sel = cartPM===pm[0];
