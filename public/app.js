@@ -626,7 +626,6 @@ function RecordCard(props) {
   var setCartCount = props.setCartCount || function(){};
   var isTop = rank === 1;
 
-  var ts = useState(false); var showTrade = ts[0]; var setShowTrade = ts[1];
   var cs = useState(false); var showChat = cs[0]; var setShowChat = cs[1];
   var pm = useState(null); var payModal = pm[0]; var setPayModal = pm[1];
   var pp = useState(false); var payDone = pp[0]; var setPayDone = pp[1];
@@ -672,77 +671,8 @@ function RecordCard(props) {
   function saveBalance(v){ try { localStorage.setItem("agro_balance_"+(loginUser&&loginUser.id||"guest"), String(v)); } catch(e){} }
   var bals = useState(getBalance()); var curBalance = bals[0]; var setCurBalance = bals[1];
 
-  // 노은시장 카드일 때 품목명으로 거래실적 매칭
-  var matchedTrades = [];
-  if(r.market.id === 8 && tradeData.length > 0) {
-    // 품목명 유사 매칭 헬퍼 (완숙토마토↔토마토, 대추방울↔방울토마토 등)
-    function itemMatch(t품목, cardItem, cardFull) {
-      if(!t품목) return false;
-      // 소계/합계 제외
-      if(t품목.includes("소계") || t품목.includes("합계")) return false;
-      // 정확히 포함 관계
-      if(t품목.includes(cardItem) || cardItem.includes(t품목)) return true;
-      if(cardFull && (t품목.includes(cardFull) || cardFull.includes(t품목))) return true;
-      // 토마토 계열: 완숙토마토, 방울토마토, 대추방울 등
-      var 토마토류 = ["토마토","완숙토마토","방울토마토","대추방울","대추토마토","스테비아"];
-      if(토마토류.some(function(k){return cardItem.includes("토마토")||cardItem.includes("방울");}) &&
-         토마토류.some(function(k){return t품목.includes(k);})) return true;
-      // 살구 계열
-      if(cardItem.includes("살구") && t품목.includes("살구")) return true;
-      // 복숭아 계열
-      if(cardItem.includes("복숭아") && t품목.includes("복숭아")) return true;
-      // 블루베리
-      if(cardItem.includes("블루베리") && t품목.includes("블루베리")) return true;
-      return false;
-    }
-
-    // 시트에서 가장 최신 날짜 추출 (날짜 무관하게 최신 데이터 표시)
-    var latestTradeDate = tradeData.reduce(function(latest, t){
-      var d = (t["경매일자"]||t["매매일자"]||"").replace(/\./g,"-").trim();
-      return d > latest ? d : latest;
-    }, "");
-
-    matchedTrades = tradeData.filter(function(t){
-      var t품목 = (t["품목명"]||t["품목"]||"").trim();
-      var tDate = (t["경매일자"]||t["매매일자"]||"").replace(/\./g,"-").trim();
-      var dateOk = !latestTradeDate || !tDate || tDate === latestTradeDate;
-      if(!dateOk || !itemMatch(t품목, r.itemName, r.fullName)) return false;
-
-      // 중도매인 비공개 거래건 필터링
-      var no = String(t["낙찰 중도매인"]||"").trim();
-      var m = no.match(/^(\d+)/);
-      var noKey = m ? String(parseInt(m[1])) : no;
-      var itemName = t품목;
-      var tradeKey = itemName+"_"+(t["경매시간"]||"");
-      for(var acc in ACCOUNTS) {
-        if(ACCOUNTS[acc].role==="dealer" && String(ACCOUNTS[acc].dealerNo)===noKey) {
-          try {
-            var ds = JSON.parse(localStorage.getItem("agro_dealer_"+acc)||"{}");
-            if(ds.hiddenTrades && ds.hiddenTrades[tradeKey]) return false;
-          } catch(e){}
-        }
-      }
-      return true;
-    }).slice(0, 30);
-  }
-  var chatTradeRow = matchedTrades.length > 0 ? matchedTrades[0] : null;
-
-  // 노은시장 카드 가격: 경락가가 이상한 값(1000원 미만)이면 거래실적 평균가로 대체
   var displayPrice = r.price;
   var displayUnit  = r.unit;
-  if(r.market.id === 8 && matchedTrades.length > 0) {
-    var validPrices = matchedTrades
-      .map(function(t){ return parseInt((t["단가"]||"0").replace(/,/g,"")); })
-      .filter(function(p){ return p > 1000; });
-    if(validPrices.length > 0) {
-      var avgP = Math.round(validPrices.reduce(function(s,p){return s+p;},0) / validPrices.length);
-      // 경락가가 이상하거나(1000원 미만) 없으면 거래실적 평균가 사용
-      if(!displayPrice || displayPrice < 1000) {
-        displayPrice = avgP;
-        displayUnit  = (matchedTrades[0]["중량"] || "") + "kg/박스";
-      }
-    }
-  }
 
   return (
     <div style={{background:"#fff",borderRadius:16,border:"2px solid "+(isTop?"#4ade80":"#e5e7eb"),overflow:"hidden",boxShadow:isTop?"0 4px 20px rgba(74,222,128,0.15)":"0 2px 8px rgba(0,0,0,0.05)"}}>
@@ -755,15 +685,10 @@ function RecordCard(props) {
             <span style={{fontSize:28}}>{r.emoji}</span>
             <div>
               <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{fontWeight:800,fontSize:15,color:"#0d1f15"}}>
-                  {r.market.id !== 8
-                    ? r.itemName  // AT데이터: 품목명만 (BOX/수박 등 괄호 제거)
-                    : r.fullName  // 노은시장: 그대로
-                  }
-                </div>
+                <div style={{fontWeight:800,fontSize:15,color:"#0d1f15"}}>{r.itemName}</div>
                 {!r.isMock && <span style={{background:"#ecfdf5",color:"#059669",fontSize:9,fontWeight:700,borderRadius:10,padding:"2px 6px",border:"1px solid #6ee7b7"}}>🔴 LIVE</span>}
               </div>
-              {r.variety && r.market.id !== 8 && (
+              {r.variety && (
                 <div style={{fontSize:11,color:"#888",marginTop:1}}>{r.variety}</div>
               )}
               <div style={{fontSize:11,color:"#888",marginTop:1}}>
@@ -771,16 +696,16 @@ function RecordCard(props) {
               </div>
             </div>
           </div>
-          {r.market.id !== 8 && <div style={{textAlign:"right"}}>
+          <div style={{textAlign:"right"}}>
             <div style={{fontWeight:900,fontSize:19,color:G.mid}}>{displayPrice.toLocaleString()}<span style={{fontSize:12,fontWeight:500}}>원</span></div>
             <div style={{fontSize:10,color:"#888",marginTop:1,fontWeight:500}}>
               {displayUnit ? "단위 "+fmtUnit(displayUnit)+" · 박스당" : "박스당"}
             </div>
-          </div>}
+          </div>
         </div>
 
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          {r.market.id !== 8 && r.qty > 0 && (
+          {r.qty > 0 && (
             <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>
               📦 {r.qty}개 {r.unit ? "/ "+fmtUnit(r.unit) : ""}
             </span>
@@ -834,113 +759,62 @@ function RecordCard(props) {
             )}
           </div>
         )}
-        {r.market.id === 8 && matchedTrades.length > 0 && (
-          <div style={{marginBottom:8}}>
-            <button onClick={function(){setShowTrade(!showTrade);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:"#2563eb",fontWeight:700,cursor:"pointer"}}>
-              {showTrade ? "▲ 거래실적 접기" : "▼ 오늘 거래실적 보기 ("+matchedTrades.length+"건)"}
-            </button>
-            {showTrade && (
-              <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:8}}>
-                {matchedTrades.map(function(t, i){
-                  var auctionTime = (t["경매시간"]||"").trim();
-                  var origin      = (t["산지명"]||"").trim();
-                  var grade       = (t["등급"]||"").trim();
-                  var size        = (t["크기"]||"").trim();
-                  var weight      = (t["중량"]||"").trim();
-                  var qty         = (t["수량"]||"").trim();
-                  var price       = parseInt((t["단가"]||"").replace(/,/g,""))||0;
-                  var amount      = parseInt((t["금액"]||"").replace(/,/g,""))||0;
-                  var no          = String(t["낙찰 중도매인"]||"").trim();
-                  var info        = getDealerInfo(no);
-                  // 중도매인 비공개 설정 확인
-                  var noKey = (function(){
-                    var m = no.match(/^(\d+)/);
-                    return m ? String(parseInt(m[1])) : no;
-                  })();
-                  var dealerPrivate = (function(){
-                    try {
-                      // DEALER_INFO에서 해당 번호의 dealer 계정 찾기
-                      for(var acc in ACCOUNTS) {
-                        if(ACCOUNTS[acc].role==="dealer" && String(ACCOUNTS[acc].dealerNo)===noKey) {
-                          var ds = JSON.parse(localStorage.getItem("agro_dealer_"+acc)||"{}");
-                          return ds.phonePublic === false; // 명시적으로 비공개 설정한 경우만
-                        }
-                      }
-                    } catch(e){}
-                    return false;
-                  })();
-                  var kgPerBox    = parseFloat(weight)||0;
-                  var kgPrice     = (kgPerBox>0&&price>0) ? Math.round(price/kgPerBox) : null;
-                  var itemKey     = no+"_"+(auctionTime||i);
-                  var pKey        = no+"_"+itemKey;
-                  var isSold      = purchases[pKey] && purchases[pKey].status==="완료";
-                  var gradeColor  = {
-                    "특":{bg:"#fef9c3",color:"#854d0e"},"상":{bg:"#dbeafe",color:"#1e40af"},
-                    "보통":{bg:"#f3f4f6",color:"#555"},"1":{bg:"#fef9c3",color:"#854d0e"},
-                    "2":{bg:"#dbeafe",color:"#1e40af"},"3":{bg:"#f3f4f6",color:"#555"},
-                    "4":{bg:"#fce7f3",color:"#9d174d"},
-                    "대":{bg:"#fef9c3",color:"#854d0e"},"중":{bg:"#dbeafe",color:"#1e40af"},"소":{bg:"#f3f4f6",color:"#555"},
-                  }[grade]||{bg:"#f3f4f6",color:"#555"};
-
-                  return (
-                    <div key={i} style={{background:"#f8faff",borderRadius:12,border:"1px solid #bfdbfe",padding:"11px 13px"}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <div style={{background:dealerPrivate?"#64748b":"#1e3a8a",borderRadius:8,padding:"3px 8px"}}>
-                            <span style={{color:"#fff",fontWeight:700,fontSize:11}}>
-                              {dealerPrivate ? "익명 중도매인" : info.name}
-                            </span>
-                            {!dealerPrivate && <span style={{color:"#93c5fd",fontSize:10,marginLeft:4}}>#{noKey}</span>}
-                          </div>
-                          {!dealerPrivate && info.phone && <a href={"tel:"+info.phone} style={{color:G.light,fontSize:10,textDecoration:"none"}}>📞 {info.phone}</a>}
-                          {dealerPrivate && <span style={{fontSize:10,color:"#94a3b8",background:"#f1f5f9",borderRadius:6,padding:"2px 7px"}}>🔒 연락처 비공개</span>}
-                        </div>
-                        <span style={{color:"#94a3b8",fontSize:10}}>{auctionTime}</span>
-                      </div>
-                      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
-                        {origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📍 {origin}</span>}
-                        {grade && <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:20,padding:"2px 9px",fontWeight:700,fontSize:10}}>{grade}등급</span>}
-                        {size && size!=="0" && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"2px 9px"}}>{size}</span>}
-                        {weight && <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📦 {fmtKg(weight)}kg/박스</span>}
-                        {qty && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"2px 9px"}}>{qty}개</span>}
-                      </div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div>
-                          <span style={{fontWeight:900,fontSize:16,color:G.mid}}>{price ? price.toLocaleString()+"원" : "-"}</span>
-                          <span style={{fontSize:10,color:"#aaa",marginLeft:4}}>/ {fmtKg(weight)}kg 단위</span>
-                          {kgPrice && <div style={{fontSize:11,color:"#059669",fontWeight:600,marginTop:2}}>kg당 {kgPrice.toLocaleString()}원</div>}
-                        </div>
-                        <div style={{display:"flex",gap:5}}>
-                          {isSold
-                            ? <span style={{background:"#fee2e2",color:"#991b1b",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700}}>판매완료</span>
-                            : <>
-                                <button onClick={function(){
-                                  if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
-                                  setBuyQty(1);
-                                  setPayModal({no:no,tradeRow:t,itemKey:itemKey,maxQty:parseInt(qty)||1,cardId:r.id});
-                                }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
-                                <button onClick={function(){
-                                  if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
-                                  setCartQty(1);
-                                  setCartModal({t:t, no:no, itemKey:itemKey, maxQty:parseInt(qty)||1, cardId:r.id});
-                                }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
-                                <button onClick={function(){ window._chatDealer={no:dealerPrivate?"익명":no, tradeRow:t, chatType:"inquiry", anonymous:dealerPrivate}; setShowChat(true); }}
-                                  style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
-                              </>
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+        {r.market.id === 8 && (function(){
+          // 노은시장: 중도매인 정보 카드로 표시
+          var no = r.dealerNo || "";
+          var noKey = (function(){ var m = no.match(/^(\d+)/); return m ? String(parseInt(m[1])) : no; })();
+          var info = getDealerInfo(no);
+          var dealerPrivate = (function(){
+            try {
+              for(var acc in ACCOUNTS) {
+                if(ACCOUNTS[acc].role==="dealer" && String(ACCOUNTS[acc].dealerNo)===noKey) {
+                  var ds = JSON.parse(localStorage.getItem("agro_dealer_"+acc)||"{}");
+                  return ds.phonePublic === false;
+                }
+              }
+            } catch(e){}
+            return false;
+          })();
+          var itemKey = "noeun_"+no+"_"+(r.auctionTime||r.id);
+          var isSold = purchases["soldcard_"+r.id] && purchases["soldcard_"+r.id].status==="완료";
+          return (
+            <div style={{background:"#f8faff",borderRadius:10,border:"1px solid #bfdbfe",padding:"10px 12px",marginBottom:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{background:dealerPrivate?"#64748b":"#1e3a8a",borderRadius:8,padding:"3px 8px"}}>
+                    <span style={{color:"#fff",fontWeight:700,fontSize:11}}>{dealerPrivate ? "익명 중도매인" : info.name}</span>
+                    {!dealerPrivate && <span style={{color:"#93c5fd",fontSize:10,marginLeft:4}}>#{noKey}</span>}
+                  </div>
+                  {!dealerPrivate && info.phone && <a href={"tel:"+info.phone} style={{color:G.light,fontSize:10,textDecoration:"none"}}>📞 {info.phone}</a>}
+                  {dealerPrivate && <span style={{fontSize:10,color:"#94a3b8",background:"#f1f5f9",borderRadius:6,padding:"2px 7px"}}>🔒 연락처 비공개</span>}
+                </div>
+                <span style={{color:"#94a3b8",fontSize:10}}>{r.auctionTime}</span>
               </div>
-            )}
-          </div>
-        )}
-
-        {r.market.id === 8 && matchedTrades.length === 0 && tradeData.length > 0 && (
-          <div style={{marginBottom:8,fontSize:11,color:"#aaa"}}>📋 이 품목의 거래실적 없음</div>
-        )}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontSize:11,color:"#888"}}>낙찰번호 {noKey}</div>
+                <div style={{display:"flex",gap:5}}>
+                  {isSold
+                    ? <span style={{background:"#fee2e2",color:"#991b1b",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700}}>판매완료</span>
+                    : <>
+                        <button onClick={function(){
+                          if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
+                          setBuyQty(1);
+                          setPayModal({no:no, tradeRow:{"품목명":r.itemName,"등급":r.grade||"","산지명":r.origin||"","단가":String(r.price||0),"수량":String(r.qty||1),"중량":r.unit||""}, itemKey:itemKey, maxQty:r.qty||1, cardId:r.id});
+                        }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+                        <button onClick={function(){
+                          if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
+                          setCartQty(1);
+                          setCartModal({t:{"품목명":r.itemName,"등급":r.grade||"","산지명":r.origin||"","단가":String(r.price||0),"수량":String(r.qty||1),"중량":r.unit||""}, no:no, itemKey:itemKey, maxQty:r.qty||1, cardId:r.id});
+                        }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
+                        <button onClick={function(){ window._chatDealer={no:dealerPrivate?"익명":no, tradeRow:null, chatType:"inquiry", anonymous:dealerPrivate}; setShowChat(true); }}
+                          style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
+                      </>
+                  }
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:10,color:"#aaa"}}>🕐 {r.date}</div>
@@ -960,7 +834,6 @@ function RecordCard(props) {
                     alert("이미 장바구니에 담긴 상품입니다."); return;
                   }
                 } catch(e){}
-                // AT 카드용 가상 tradeRow 생성해서 cartModal 재사용
                 setCartQty(1);
                 setCartModal({
                   t:{"품목명":r.itemName,"등급":r.grade||"","산지명":r.origin||"","단가":String(r.price||0),"수량":String(r.qty||1),"중량":r.unit||""},
@@ -976,7 +849,7 @@ function RecordCard(props) {
           </div>
         </div>
 
-        {showChat && <ChatModal record={r} tradeRow={window._chatDealer ? window._chatDealer.tradeRow : chatTradeRow} onClose={function(){setShowChat(false); window._chatDealer=null;}}/>}
+        {showChat && <ChatModal record={r} tradeRow={window._chatDealer ? window._chatDealer.tradeRow : null} onClose={function(){setShowChat(false); window._chatDealer=null;}}/>}
 
         {/* 장바구니 수량 선택 모달 */}
         {cartModal && (function(){
@@ -2823,40 +2696,38 @@ function App() {
           ? rows.filter(function(r){ return normDate(r["경매일자"]||r["매매일자"]||"") === latestTradeDate; })
           : [];
 
-        var itemGroups = {};
-        todayRows.forEach(function(row){
+        // 개별 거래 행 → 독립 카드 (AT카드와 동일 구조)
+        var noeunCards = todayRows.map(function(row, i){
           var itemName = (row["품목명"]||row["품목"]||"").trim();
-          if(!itemName) return;
-          var price = parseInt((row["단가"]||"0").replace(/,/g,""))||0;
-          if(!price) return;
-          if(!itemGroups[itemName]) itemGroups[itemName] = [];
-          itemGroups[itemName].push(row);
-        });
-
-        var noeunCards = Object.keys(itemGroups).map(function(itemName, i){
-          var rows2 = itemGroups[itemName];
-          var prices = rows2.map(function(r){ return parseInt((r["단가"]||"0").replace(/,/g,"")); }).filter(function(p){ return p>0; });
-          var avgPrice = prices.length ? Math.round(prices.reduce(function(a,b){return a+b;},0)/prices.length) : 0;
-          var totalQty = rows2.reduce(function(s,r){ return s+(parseInt((r["수량"]||"0").replace(/,/g,""))||0); },0);
-          var sampleWeight = (rows2[0]&&rows2[0]["중량"]) ? rows2[0]["중량"] : "";
+          var price    = parseInt((row["단가"]||"0").replace(/,/g,""))||0;
+          var qty      = parseInt((row["수량"]||"0").replace(/,/g,""))||0;
+          var weight   = (row["중량"]||"").trim();
+          var grade    = (row["등급"]||"").trim();
+          var origin   = (row["산지명"]||"").trim();
+          var no       = String(row["낙찰 중도매인"]||"").trim();
+          var auctionTime = (row["경매시간"]||"").trim();
+          var info     = getDealerInfo(no);
           return {
-            id: "noeun_"+itemName,
+            id: "noeun_"+i+"_"+auctionTime,
             date: latestTradeDate,
             market: NOEUN_MARKET,
             itemName: itemName,
             fullName: itemName,
-            variety: "",
-            origin: (rows2[0]&&rows2[0]["산지명"]) ? rows2[0]["산지명"] : "",
-            qty: totalQty,
-            unit: sampleWeight ? sampleWeight+"kg" : "박스",
-            price: avgPrice,
-            corp: "중부청과",
+            variety: grade ? grade+"등급" : "",
+            origin: origin,
+            qty: qty,
+            unit: weight ? weight+"kg" : "박스",
+            price: price,
+            corp: info.name || "중부청과",
+            grade: grade,
             emoji: getEmoji(itemName),
             category: getCategory(itemName),
             isMock: false,
-            bidder: "", grade: "", shipperName: "", shipperPhone: "",
+            dealerNo: no,
+            auctionTime: auctionTime,
+            bidder: "", shipperName: "", shipperPhone: "",
           };
-        }).filter(function(r){ return r.price > 0; });
+        }).filter(function(r){ return r.itemName && r.price > 0; });
 
         // 노은 카드 별도 state로 저장
         setNoeunCards(noeunCards);
@@ -2866,39 +2737,37 @@ function App() {
         var prevTradeDate = YESTERDAY;
         if(prevTradeDate) {
           var prevRows = rows.filter(function(r){ return normDate(r["경매일자"]||r["매매일자"]||"") === prevTradeDate; });
-          var prevGroups = {};
-          prevRows.forEach(function(row){
+          var prevNoeunCards = prevRows.map(function(row, i){
             var itemName = (row["품목명"]||row["품목"]||"").trim();
-            if(!itemName) return;
-            var price = parseInt((row["단가"]||"0").replace(/,/g,""))||0;
-            if(!price) return;
-            if(!prevGroups[itemName]) prevGroups[itemName] = [];
-            prevGroups[itemName].push(row);
-          });
-          var prevNoeunCards = Object.keys(prevGroups).map(function(itemName){
-            var rows2 = prevGroups[itemName];
-            var prices = rows2.map(function(r){ return parseInt((r["단가"]||"0").replace(/,/g,"")); }).filter(function(p){ return p>0; });
-            var avgPrice = prices.length ? Math.round(prices.reduce(function(a,b){return a+b;},0)/prices.length) : 0;
-            var totalQty = rows2.reduce(function(s,r){ return s+(parseInt((r["수량"]||"0").replace(/,/g,""))||0); },0);
-            var sampleWeight = (rows2[0]&&rows2[0]["중량"]) ? rows2[0]["중량"] : "";
+            var price    = parseInt((row["단가"]||"0").replace(/,/g,""))||0;
+            var qty      = parseInt((row["수량"]||"0").replace(/,/g,""))||0;
+            var weight   = (row["중량"]||"").trim();
+            var grade    = (row["등급"]||"").trim();
+            var origin   = (row["산지명"]||"").trim();
+            var no       = String(row["낙찰 중도매인"]||"").trim();
+            var auctionTime = (row["경매시간"]||"").trim();
+            var info     = getDealerInfo(no);
             return {
-              id: "noeunprev_"+itemName,
+              id: "noeunprev_"+i+"_"+auctionTime,
               date: prevTradeDate,
               market: NOEUN_MARKET,
               itemName: itemName,
               fullName: itemName,
-              variety: "",
-              origin: (rows2[0]&&rows2[0]["산지명"]) ? rows2[0]["산지명"] : "",
-              qty: totalQty,
-              unit: sampleWeight ? sampleWeight+"kg" : "박스",
-              price: avgPrice,
-              corp: "중부청과",
+              variety: grade ? grade+"등급" : "",
+              origin: origin,
+              qty: qty,
+              unit: weight ? weight+"kg" : "박스",
+              price: price,
+              corp: info.name || "중부청과",
+              grade: grade,
               emoji: getEmoji(itemName),
               category: getCategory(itemName),
               isMock: false,
-              bidder: "", grade: "", shipperName: "", shipperPhone: "",
+              dealerNo: no,
+              auctionTime: auctionTime,
+              bidder: "", shipperName: "", shipperPhone: "",
             };
-          }).filter(function(r){ return r.price > 0; });
+          }).filter(function(r){ return r.itemName && r.price > 0; });
           // prevData(AT 전일)에 노은 전일 카드 추가
           setPrevData(function(prev){ return prev.concat(prevNoeunCards); });
         }
