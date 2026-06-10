@@ -1475,11 +1475,36 @@ function App() {
       try {
         var res = await fetch(CSV_URL);
         if(!res.ok) throw new Error("경락 데이터 로드 실패: " + res.status);
-        var csv = await res.text();
+        // 서버가 JSON으로 파싱해서 반환
+        var json = await res.json();
         if(cancelled) return;
-        var liveRows = parseCSV(csv);
 
-        // 중복 제거: 완전히 동일한 행만 제거
+        // JSON → 카드 데이터 변환
+        var liveRows = json.map(function(r, i){
+          var market = getMarket(r["도매시장"] || "");
+          var itemName = (r["품목"] || "").trim();
+          var variety  = (r["품종"] || "").trim();
+          var fullName = variety && variety !== itemName ? itemName+"("+variety+")" : itemName;
+          return {
+            id: i,
+            date: r["경매일시"] || "",
+            market: market,
+            itemName: itemName,
+            fullName: fullName,
+            variety: variety,
+            origin: r["산지"] || "",
+            qty: r["수량"] || 0,
+            unit: r["단위"] || "개",
+            price: r["경락가"] || 0,
+            corp: r["법인"] || "",
+            emoji: getEmoji(itemName),
+            category: getCategory(itemName),
+            isMock: false,
+            bidder: "", grade: "", shipperName: "", shipperPhone: "",
+          };
+        }).filter(function(r){ return r.itemName && r.price > 0; });
+
+        // 중복 제거
         var seen = {};
         var combined = liveRows.filter(function(r){
           var key = r.date+"_"+r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin;
@@ -1511,10 +1536,25 @@ function App() {
     async function loadPrev() {
       try {
         var res = await fetch("/api/sheet/prev");
-        if(!res.ok) return; // 없으면 그냥 빈 상태 유지
-        var csv = await res.text();
+        if(!res.ok) return;
+        var json = await res.json();
         if(cancelled) return;
-        var rows = parseCSV(csv);
+        if(!Array.isArray(json)) return;
+        var rows = json.map(function(r, i){
+          var market = getMarket(r["도매시장"] || "");
+          var itemName = (r["품목"] || "").trim();
+          var variety  = (r["품종"] || "").trim();
+          var fullName = variety && variety !== itemName ? itemName+"("+variety+")" : itemName;
+          return {
+            id: i, date: r["경매일시"] || "", market: market,
+            itemName: itemName, fullName: fullName, variety: variety,
+            origin: r["산지"] || "", qty: r["수량"] || 0,
+            unit: r["단위"] || "개", price: r["경락가"] || 0,
+            corp: r["법인"] || "", emoji: getEmoji(itemName),
+            category: getCategory(itemName), isMock: false,
+            bidder: "", grade: "", shipperName: "", shipperPhone: "",
+          };
+        }).filter(function(r){ return r.itemName && r.price > 0; });
         var seen = {};
         var deduped = rows.filter(function(r){
           var key = r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
