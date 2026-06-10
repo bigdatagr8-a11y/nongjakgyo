@@ -30,17 +30,14 @@
   </style>
 </head>
 <body>
-  <!-- 로딩 화면 -->
   <div id="loading">
     <div class="spinner"></div>
     <div style="color:#52b788;font-size:13px;font-weight:700;letter-spacing:3px;">AGRO CONNECT</div>
     <div style="color:rgba(255,255,255,0.6);font-size:12px;margin-top:8px;">농작교 불러오는 중...</div>
   </div>
-
   <div id="root"></div>
-
-<script type="text/babel" data-presets="react" src="./app.js?v=3"></script>
-    // 앱 로드 후 로딩 화면 제거
+  <script type="text/babel" data-presets="react" src="./app.js?v=5"></script>
+  <script>
     window.addEventListener('load', function() {
       setTimeout(function() {
         var el = document.getElementById('loading');
