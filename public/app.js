@@ -2986,6 +2986,64 @@ function App() {
                         {sel && pm[0]!=="balance" && <span style={{marginLeft:"auto",color:"#c2410c",fontWeight:700,fontSize:12}}>✓</span>}
                       </div>;
                     })}
+
+                    {/* 카드 세부 입력 */}
+                    {cartPM==="card" && (
+                      <div style={{background:"#f9fafb",borderRadius:10,padding:"14px",marginTop:8,border:"1px solid #e5e7eb"}}>
+                        <div style={{background:"linear-gradient(135deg,#1e3a8a,#2563eb)",borderRadius:10,padding:"14px",color:"#fff",marginBottom:10}}>
+                          <div style={{fontSize:9,opacity:0.7}}>CREDIT CARD</div>
+                          <div style={{fontSize:13,fontWeight:700,letterSpacing:3,margin:"6px 0"}}>**** **** **** ****</div>
+                          <div style={{display:"flex",justifyContent:"space-between",fontSize:9,opacity:0.8}}><span>카드소유자</span><span>MM/YY</span></div>
+                        </div>
+                        <input placeholder="카드번호 16자리" onChange={function(e){var v=e.target.value.replace(/\D/g,"").substring(0,16);e.target.value=v.replace(/(.{4})/g,"$1 ").trim();}} style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,marginBottom:6,outline:"none",boxSizing:"border-box"}}/>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
+                          <input placeholder="MM/YY" maxLength={5} style={{border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none"}}/>
+                          <input placeholder="CVC" maxLength={3} type="password" style={{border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none"}}/>
+                        </div>
+                        <input placeholder="카드 비밀번호 앞 2자리" maxLength={2} type="password" style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                      </div>
+                    )}
+
+                    {/* 카카오페이 */}
+                    {cartPM==="kakao" && (
+                      <div style={{background:"#FEE500",borderRadius:10,padding:"14px",marginTop:8,textAlign:"center"}}>
+                        <div style={{fontSize:18,fontWeight:900,color:"#3A1D1D"}}>kakao pay</div>
+                        <div style={{display:"inline-block",background:"#fff",padding:6,borderRadius:8,margin:"8px auto"}}>
+                          <svg width="90" height="90" viewBox="0 0 142 142" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="142" height="142" fill="white"/>
+                            <rect x="8" y="8" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/><rect x="15" y="15" width="21" height="21" fill="#1a1a1a"/>
+                            <rect x="97" y="8" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/><rect x="104" y="15" width="21" height="21" fill="#1a1a1a"/>
+                            <rect x="8" y="97" width="35" height="35" fill="none" stroke="#1a1a1a" strokeWidth="4"/><rect x="15" y="104" width="21" height="21" fill="#1a1a1a"/>
+                            <rect x="50" y="8" width="5" height="5" fill="#1a1a1a"/><rect x="60" y="8" width="5" height="5" fill="#1a1a1a"/><rect x="75" y="8" width="5" height="5" fill="#1a1a1a"/><rect x="85" y="8" width="5" height="5" fill="#1a1a1a"/>
+                            <rect x="50" y="18" width="5" height="5" fill="#1a1a1a"/><rect x="65" y="18" width="5" height="5" fill="#1a1a1a"/><rect x="80" y="18" width="5" height="5" fill="#1a1a1a"/>
+                            <rect x="8" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="23" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="50" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="65" y="50" width="5" height="5" fill="#1a1a1a"/><rect x="85" y="50" width="5" height="5" fill="#1a1a1a"/>
+                            <rect x="13" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="38" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="55" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="75" y="60" width="5" height="5" fill="#1a1a1a"/><rect x="100" y="60" width="5" height="5" fill="#1a1a1a"/>
+                            <rect x="8" y="70" width="5" height="5" fill="#1a1a1a"/><rect x="28" y="70" width="5" height="5" fill="#1a1a1a"/><rect x="55" y="70" width="5" height="5" fill="#1a1a1a"/><rect x="80" y="70" width="5" height="5" fill="#1a1a1a"/>
+                            <rect x="50" y="100" width="5" height="5" fill="#1a1a1a"/><rect x="70" y="100" width="5" height="5" fill="#1a1a1a"/><rect x="90" y="100" width="5" height="5" fill="#1a1a1a"/>
+                            <rect x="55" y="115" width="5" height="5" fill="#1a1a1a"/><rect x="80" y="115" width="5" height="5" fill="#1a1a1a"/><rect x="100" y="115" width="5" height="5" fill="#1a1a1a"/>
+                            <rect x="57" y="57" width="28" height="28" rx="4" fill="#FEE500"/>
+                            <text x="71" y="76" textAnchor="middle" fontSize="16" fontWeight="900" fill="#3A1D1D" fontFamily="Arial">K</text>
+                          </svg>
+                        </div>
+                        <div style={{fontSize:11,color:"#3A1D1D",opacity:0.75}}>카카오톡 → 더보기 → 페이 → QR결제</div>
+                        <div style={{fontSize:12,fontWeight:700,color:"#3A1D1D",marginTop:6}}>결제금액: {totalDep.toLocaleString()}원</div>
+                      </div>
+                    )}
+
+                    {/* 계좌이체 */}
+                    {cartPM==="transfer" && (
+                      <div style={{background:"#f0fdf4",borderRadius:10,padding:"12px",marginTop:8,border:"1px solid #bbf7d0"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:G.mid,marginBottom:8}}>입금 계좌 안내</div>
+                        {[["은행","농협은행"],["계좌번호","352-0919-7423-83"],["예금주","(주)농작교"],["입금액",totalDep.toLocaleString()+"원"]].map(function(r){return(
+                          <div key={r[0]} style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                            <span style={{fontSize:11,color:"#888"}}>{r[0]}</span>
+                            <span style={{fontSize:12,fontWeight:r[0]==="입금액"?900:700,color:r[0]==="입금액"?"#16a34a":"#1a1a1a"}}>{r[1]}</span>
+                          </div>
+                        );})}
+                        <input placeholder="입금자명 (본인 이름)" style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",marginTop:6}}/>
+                        <div style={{fontSize:10,color:"#e55",marginTop:6}}>⚠️ 입금 후 확인까지 최대 10분 소요됩니다</div>
+                      </div>
+                    )}
                   </div>
                   <button onClick={checkout} disabled={!cartPM}
                     style={{width:"100%",background:cartPM?"linear-gradient(135deg,#9a3412,#c2410c)":"#d1d5db",color:"#fff",border:"none",borderRadius:12,padding:"14px",fontSize:14,fontWeight:900,cursor:cartPM?"pointer":"not-allowed"}}>
