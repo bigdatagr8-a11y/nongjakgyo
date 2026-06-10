@@ -2877,44 +2877,47 @@ function App() {
 
       </div>
       {showCart && loginUser && loginUser.role==="buyer" && (function(){
-        var cart = [];
-        try { cart = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]"); } catch(e){}
-        // cartList가 비어있고 localStorage에 데이터 있으면 동기화
-        if(cartList.length === 0 && cart.length > 0 && !cartDone) {
-          setCartList(cart);
-        }
+        var currentCart = [];
+        try { currentCart = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]"); } catch(e){}
         var bal = parseInt(localStorage.getItem("agro_balance_"+loginUser.id)||"0");
-        var totalDep = cartList.reduce(function(s,c){return s+(c.deposit||0);},0);
-        var totalAmt = cartList.reduce(function(s,c){return s+(c.total||0);},0);
+        var totalDep = currentCart.reduce(function(s,c){return s+(c.deposit||0);},0);
+        var totalAmt = currentCart.reduce(function(s,c){return s+(c.total||0);},0);
 
         function removeItem(key){
-          var next = cartList.filter(function(c){return c.itemKey!==key;});
+          var next = currentCart.filter(function(c){return c.itemKey!==key;});
           setCartList(next);
+          setCartCount(next.length);
           try { localStorage.setItem("agro_cart_"+loginUser.id, JSON.stringify(next)); } catch(e){}
         }
 
         function checkout(){
           if(!cartPM){alert("결제 수단을 선택해주세요.");return;}
-          if(cartPM==="balance"&&bal<totalDep){alert("예치금 부족\n잔액: "+bal.toLocaleString()+"원\n필요: "+totalDep.toLocaleString()+"원");return;}
+          // localStorage에서 최신 장바구니 직접 읽기
+          var currentCart = [];
+          try { currentCart = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]"); } catch(e){}
+          if(currentCart.length === 0){alert("장바구니가 비어있습니다.");return;}
+          var currentTotalDep = currentCart.reduce(function(s,c){return s+(c.deposit||0);},0);
+          if(cartPM==="balance"&&bal<currentTotalDep){alert("예치금 부족\n잔액: "+bal.toLocaleString()+"원\n필요: "+currentTotalDep.toLocaleString()+"원");return;}
           if(cartPM==="balance"){
-            try{localStorage.setItem("agro_balance_"+loginUser.id, String(bal-totalDep));}catch(e){}
+            try{localStorage.setItem("agro_balance_"+loginUser.id, String(bal-currentTotalDep));}catch(e){}
           }
           // 구매내역 저장
           try{
             var existing = JSON.parse(localStorage.getItem("agro_purchase_"+loginUser.id)||"[]");
-            cartList.forEach(function(c){
+            currentCart.forEach(function(c){
               existing.push({key:c.itemKey,itemName:c.itemName,grade:c.grade,origin:c.origin,price:c.price,qty:c.qty,deposit:c.deposit,total:c.total,payMethod:cartPM,date:new Date().toLocaleDateString("ko-KR"),dealerName:c.dealerName});
             });
             localStorage.setItem("agro_purchase_"+loginUser.id, JSON.stringify(existing));
           }catch(e){}
-          // 판매완료 처리 (purchases state 업데이트)
+          // 판매완료 처리
           setPurchases(function(prev){
             var n = Object.assign({}, prev);
-            cartList.forEach(function(c){
+            currentCart.forEach(function(c){
               n[c.itemKey] = {status:"완료", deposit:c.deposit, total:c.total, payMethod:cartPM};
             });
             return n;
           });
+          // 장바구니 비우기
           setCartList([]);
           setCartCount(0);
           try{localStorage.setItem("agro_cart_"+loginUser.id,"[]");}catch(e){}
@@ -2927,7 +2930,7 @@ function App() {
               <div style={{background:"linear-gradient(135deg,#9a3412,#c2410c)",borderRadius:"20px 20px 0 0",padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
                   <div style={{color:"#fed7aa",fontSize:10,fontWeight:700,letterSpacing:2}}>🧺 장바구니</div>
-                  <div style={{color:"#fff",fontWeight:800,fontSize:15,marginTop:2}}>{cartList.length}개 상품</div>
+                  <div style={{color:"#fff",fontWeight:800,fontSize:15,marginTop:2}}>{currentCart.length}개 상품</div>
                 </div>
                 <button onClick={function(){setShowCart(false);}} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:30,height:30,fontSize:16,cursor:"pointer"}}>✕</button>
               </div>
@@ -2939,13 +2942,13 @@ function App() {
                     <div style={{fontSize:12,color:"#888",marginTop:4}}>마이페이지에서 예약 내역을 확인하세요</div>
                     <button onClick={function(){setShowCart(false);setCartDone(false);}} style={{marginTop:16,background:"#f3f4f6",color:"#555",border:"none",borderRadius:12,padding:"10px 24px",fontSize:13,fontWeight:700,cursor:"pointer"}}>닫기</button>
                   </div>
-                ) : cartList.length === 0 ? (
+                ) : currentCart.length === 0 ? (
                   <div style={{textAlign:"center",padding:"40px 0"}}>
                     <div style={{fontSize:48,marginBottom:12}}>🧺</div>
                     <div style={{fontSize:14,color:"#888"}}>장바구니가 비어있습니다</div>
                   </div>
                 ) : <>
-                  {cartList.map(function(c){
+                  {currentCart.map(function(c){
                     return (
                       <div key={c.itemKey} style={{background:"#fff7ed",borderRadius:12,padding:"12px",marginBottom:8,border:"1px solid #fed7aa"}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
@@ -3047,7 +3050,7 @@ function App() {
                   </div>
                   <button onClick={checkout} disabled={!cartPM}
                     style={{width:"100%",background:cartPM?"linear-gradient(135deg,#9a3412,#c2410c)":"#d1d5db",color:"#fff",border:"none",borderRadius:12,padding:"14px",fontSize:14,fontWeight:900,cursor:cartPM?"pointer":"not-allowed"}}>
-                    🧺 {cartList.length}건 일괄 결제 ({totalDep.toLocaleString()}원)
+                    🧺 {currentCart.length}건 일괄 결제 ({totalDep.toLocaleString()}원)
                   </button>
                 </>}
               </div>
