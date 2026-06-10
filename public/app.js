@@ -1454,18 +1454,19 @@ function App() {
           };
         }).filter(function(r){ return r.itemName && r.price >= 5000; });
 
-        // 완전히 동일한 행만 제거 (경매일시+시장+법인+품목+품종+산지+수량+단위+가격)
+        // 완전히 동일한 행만 제거
         var seen = {};
         var combined = liveRows.filter(function(r){
+          // 노은시장은 AT데이터 제외 (거래실적 데이터만 사용)
+          if(r.market.id === 8) return false;
           var key = r.date+"_"+r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.variety+"_"+r.origin+"_"+r.qty+"_"+r.unit+"_"+r.price;
           if(seen[key]) return false;
           seen[key] = true;
           return true;
         });
 
-        var noeunCount = combined.filter(function(r){ return r.market.id === 8; }).length;
         setData(combined);
-        setLiveCount(noeunCount);
+        setLiveCount(0);
         setStatus("ok");
         setLastUpdated(new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}));
       } catch(e) {
@@ -1507,6 +1508,7 @@ function App() {
         }).filter(function(r){ return r.itemName && r.price > 0; });
         var seen = {};
         var deduped = rows.filter(function(r){
+          if(r.market.id === 8) return false;
           var key = r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
           if(seen[key]) return false;
           seen[key] = true;
@@ -1632,9 +1634,6 @@ function App() {
                   <span style={{background:"rgba(74,222,128,0.2)",color:"#4ade80",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px",border:"1px solid rgba(74,222,128,0.3)"}}>
                     🟢 전국 {stats.total}건 · {lastUpdated} 기준
                   </span>
-                  {liveCount > 0 && <span style={{background:"rgba(236,253,245,0.15)",color:"#a7f3d0",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px",border:"1px solid rgba(167,243,208,0.3)"}}>
-                    🔴 노은 LIVE {liveCount}건
-                  </span>}
                   {status==="partial" && <span style={{background:"rgba(234,179,8,0.2)",color:"#fde047",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px"}}>⚠️ 일부 시장 연결 대기</span>}
                 </div>}
                 {status==="loading" && <div style={{marginTop:6}}>
@@ -1660,7 +1659,7 @@ function App() {
 
           {/* 탭 */}
           <div style={{display:"flex",gap:2,paddingBottom:0}}>
-            {[["search","🔍 경락"],["map","🗺️ 지도"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
+            {[["search","🔍 경락"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
               var active = tab===t[0];
               return <button key={t[0]} onClick={function(){setTab(t[0]); if(t[0]==="mypage"&&!loginUser) setShowLogin(true);}} style={{flex:1,padding:"10px 0",border:"none",background:active?"rgba(255,255,255,0.15)":"transparent",color:active?"#fff":"rgba(255,255,255,0.55)",fontWeight:active?800:400,fontSize:10,cursor:"pointer",borderBottom:active?"2px solid #52b788":"2px solid transparent",borderRadius:"6px 6px 0 0"}}>
                 {t[1]}
