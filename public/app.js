@@ -731,8 +731,9 @@ function RecordCard(props) {
             </div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontWeight:900,fontSize:18,color:G.mid}}>{displayPrice.toLocaleString()}원</div>
-            <div style={{fontSize:10,color:"#aaa"}}>/ {displayUnit}</div>
+            <div style={{fontWeight:900,fontSize:19,color:G.mid}}>{displayPrice.toLocaleString()}<span style={{fontSize:12,fontWeight:500}}>원</span></div>
+            <div style={{fontSize:10,color:"#888",marginTop:1,fontWeight:600}}>/ {displayUnit}</div>
+            {r.unitKg && r.unitKg > 0 && <div style={{fontSize:10,color:"#aaa",marginTop:1}}>(kg당 {Math.round(displayPrice/r.unitKg).toLocaleString()}원)</div>}
           </div>
         </div>
 
@@ -898,38 +899,78 @@ function RecordCard(props) {
           var qty = (t&&t["수량"]) || r.qty;
           var origin = (t&&t["산지명"]) || r.origin;
           var dealerInfo = getDealerInfo(payModal.no);
-          var total = price * (parseInt(qty)||1);
+          var total = price * qty;
+          var deposit = Math.max(5000, Math.round(total * 0.1 / 1000) * 1000);
           return (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={function(e){if(e.target===e.currentTarget)setPayModal(null);}}>
-              <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:400,overflow:"hidden"}}>
+              <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:400,overflow:"hidden",maxHeight:"90vh",overflowY:"auto"}}>
                 <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",padding:"16px"}}>
-                  <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>🛒 구매예약</div>
+                  <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>🛒 구매예약 · 보증금 결제</div>
                   <div style={{color:"#fff",fontWeight:800,fontSize:16,marginTop:4}}>{itemName} {grade&&"· "+grade+"등급"}</div>
                   <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>중도매인 {dealerInfo.name} · 대전 노은시장</div>
                 </div>
                 <div style={{padding:"16px"}}>
-                  <div style={{background:"#f8fffe",borderRadius:12,padding:"14px",marginBottom:14}}>
+                  <div style={{background:"#f8fffe",borderRadius:12,padding:"14px",marginBottom:12}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>📦 거래 정보</div>
                     {[
                       ["산지",origin||"-"],
                       ["등급",grade||"-"],
                       ["수량",qty+"개"],
                       ["단가",price.toLocaleString()+"원"],
-                      ["결제금액",(total).toLocaleString()+"원"],
+                      ["총 거래금액",total.toLocaleString()+"원"],
                     ].map(function(row){return(
                       <div key={row[0]} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #e5e7eb",fontSize:13}}>
                         <span style={{color:"#888"}}>{row[0]}</span>
-                        <span style={{fontWeight:row[0]==="결제금액"?900:500,color:row[0]==="결제금액"?G.mid:"#333",fontSize:row[0]==="결제금액"?15:13}}>{row[1]}</span>
+                        <span style={{fontWeight:row[0]==="총 거래금액"?900:500,color:row[0]==="총 거래금액"?"#1e40af":"#333",fontSize:row[0]==="총 거래금액"?14:13}}>{row[1]}</span>
                       </div>
                     );})}
                   </div>
-                  <div style={{background:"#fef9c3",borderRadius:10,padding:"10px 12px",fontSize:11,color:"#854d0e",marginBottom:14}}>
-                    ⚠️ 예약 완료 후 해당 상품은 판매완료로 표시됩니다. 실제 결제는 중도매인과 직접 진행하세요.
+                  <div style={{background:"linear-gradient(135deg,#ecfdf5,#d1fae5)",border:"1.5px solid #6ee7b7",borderRadius:12,padding:"14px",marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                      <div style={{fontSize:12,fontWeight:700,color:G.mid}}>💳 지금 납부할 보증금 (예치금)</div>
+                      <div style={{fontSize:18,fontWeight:900,color:G.dark}}>{deposit.toLocaleString()}원</div>
+                    </div>
+                    <div style={{fontSize:11,color:"#065f46",lineHeight:1.6}}>
+                      총 거래금액의 <b>10%</b>를 보증금으로 선납합니다.<br/>
+                      나머지 <b>{(total-deposit).toLocaleString()}원</b>은 수령 시 중도매인에게 직접 결제합니다.
+                    </div>
+                  </div>
+                  {!payDone && <div style={{background:"#f9fafb",borderRadius:12,padding:"12px",marginBottom:12}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단 선택</div>
+                    {[["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
+                      return (
+                        <div key={pm[0]} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,border:"1.5px solid #e5e7eb",marginBottom:6,background:"#fff",cursor:"pointer"}}
+                          onMouseEnter={function(e){e.currentTarget.style.borderColor="#40916c"; e.currentTarget.style.background="#f0fdf4";}}
+                          onMouseLeave={function(e){e.currentTarget.style.borderColor="#e5e7eb"; e.currentTarget.style.background="#fff";}}>
+                          <span style={{fontSize:14}}>{pm[1].split(" ")[0]}</span>
+                          <span style={{fontSize:13,fontWeight:500,color:"#333"}}>{pm[1].split(" ")[1]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>}
+                  <div style={{background:"#fef9c3",borderRadius:10,padding:"10px 12px",fontSize:11,color:"#854d0e",marginBottom:14,lineHeight:1.6}}>
+                    ⚠️ 보증금 납부 후 예약이 확정되며, 상품은 판매완료로 표시됩니다.<br/>
+                    취소 시 보증금 환불은 중도매인과 협의하세요.
                   </div>
                   {payDone
                     ? <div style={{textAlign:"center",padding:"16px 0"}}>
-                        <div style={{fontSize:36,marginBottom:8}}>✅</div>
-                        <div style={{fontWeight:800,fontSize:15,color:G.mid}}>구매예약 완료!</div>
-                        <div style={{fontSize:12,color:"#888",marginTop:4}}>중도매인에게 연락하여 결제를 진행해주세요</div>
+                        <div style={{fontSize:40,marginBottom:8}}>✅</div>
+                        <div style={{fontWeight:800,fontSize:15,color:G.mid}}>보증금 납부 완료!</div>
+                        <div style={{fontSize:12,color:"#888",marginTop:4}}>예약이 확정되었습니다</div>
+                        <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:12,padding:"14px",marginTop:12,textAlign:"left"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                            <span style={{fontSize:12,color:"#888"}}>납부 보증금</span>
+                            <span style={{fontSize:16,fontWeight:900,color:G.mid}}>{deposit.toLocaleString()}원</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                            <span style={{fontSize:12,color:"#888"}}>총 거래금액</span>
+                            <span style={{fontSize:12,color:"#555"}}>{total.toLocaleString()}원</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",paddingTop:6,borderTop:"1px solid #d1fae5"}}>
+                            <span style={{fontSize:12,color:"#888"}}>수령 시 잔금</span>
+                            <span style={{fontSize:13,fontWeight:700,color:"#1e40af"}}>{(total-deposit).toLocaleString()}원</span>
+                          </div>
+                        </div>
                         {dealerInfo.phone && <a href={"tel:"+dealerInfo.phone} style={{display:"block",marginTop:12,background:G.mid,color:"#fff",borderRadius:12,padding:"12px",textAlign:"center",fontWeight:700,fontSize:13,textDecoration:"none"}}>📞 {dealerInfo.name} 연락하기</a>}
                         <button onClick={function(){setPayModal(null);setPayDone(false);}} style={{width:"100%",marginTop:8,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>닫기</button>
                       </div>
@@ -944,16 +985,17 @@ function RecordCard(props) {
                               body:JSON.stringify({
                                 dealerNo:payModal.no, itemKey:payModal.itemKey,
                                 buyer:(loginUser&&loginUser.name)||"구매자",
-                                itemName:itemName, grade:grade, price:price, qty:qty, unit:"개", origin:origin
+                                itemName:itemName, grade:grade, price:price, qty:qty, unit:"개", origin:origin,
+                                deposit:deposit, total:total
                               })
                             });
                             var json = await res.json();
                             if(json.ok || res.status===409){
-                              setPurchases(function(prev){var n=Object.assign({},prev); n[pKey]={status:"완료"}; return n;});
+                              setPurchases(function(prev){var n=Object.assign({},prev); n[pKey]={status:"완료",deposit:deposit,total:total}; return n;});
                               setPayDone(true);
                             }
                           } catch(e){ alert("오류가 발생했습니다"); }
-                        }} style={{flex:2,background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer"}}>구매예약 확정</button>
+                        }} style={{flex:2,background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer"}}>💳 보증금 {deposit.toLocaleString()}원 결제</button>
                       </div>
                   }
                 </div>
@@ -1237,6 +1279,28 @@ function BuyerMyPage(props) {
         </button>
       </div>
 
+      {/* 보증금 현황 */}
+      {(function(){
+        var keys = [];
+        try { for(var k in localStorage){ if(k.startsWith("agro_purchase_"))keys.push(k); } } catch(e){}
+        var totalDeposit = 0; var reserveCount = 0;
+        keys.forEach(function(k){ try { var v=JSON.parse(localStorage.getItem(k)||"{}"); if(v.deposit){ totalDeposit+=v.deposit; reserveCount++; } } catch(e){} });
+        return (
+          <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+            <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>💰 예치금 현황</div>
+            <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:12,padding:"16px",color:"#fff",marginBottom:12}}>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4}}>납부한 보증금 총액</div>
+              <div style={{fontSize:24,fontWeight:900,color:"#4ade80"}}>{totalDeposit.toLocaleString()}원</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:4}}>총 {reserveCount}건 예약 · 잔금은 수령 시 결제</div>
+            </div>
+            <div style={{fontSize:11,color:"#888",lineHeight:1.7}}>
+              💡 보증금은 예약 확정 시 납부되며, 실제 거래 완료 후 잔금 정산이 이루어집니다.<br/>
+              취소 시 중도매인과 협의하여 환불을 진행하세요.
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>🔔 알림음 설정</div>
         {[
@@ -1272,6 +1336,7 @@ function DealerMyPage(props) {
   var _ds = (function(){ try { return JSON.parse(localStorage.getItem("agro_dealer_"+user.id)||"{}"); } catch(e){ return {}; } })();
   var listed = useState(_ds.listedMap||{}); var listedMap = listed[0]; var setListedMap = listed[1];
   var ats = useState(_ds.alarmSound||"1"); var alarmSound = ats[0]; var setAlarmSound = ats[1];
+  var pubs = useState(_ds.phonePublic!==undefined?_ds.phonePublic:false); var phonePublic = pubs[0]; var setPhonePublic = pubs[1];
   var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
 
   function playPreview(num) {
@@ -1279,7 +1344,7 @@ function DealerMyPage(props) {
   }
 
   function saveDealer() {
-    try { localStorage.setItem("agro_dealer_"+user.id, JSON.stringify({listedMap:listedMap, alarmSound:alarmSound})); } catch(e){}
+    try { localStorage.setItem("agro_dealer_"+user.id, JSON.stringify({listedMap:listedMap, alarmSound:alarmSound, phonePublic:phonePublic})); } catch(e){}
     setSaved(true);
     setTimeout(function(){setSaved(false);}, 2000);
   }
@@ -1360,6 +1425,33 @@ function DealerMyPage(props) {
           })}
         </div>
       )}
+
+      {/* 연락처 공개 설정 */}
+      <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+        <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:4}}>📞 연락처 공개 설정</div>
+        <div style={{fontSize:11,color:"#888",marginBottom:14}}>구매자가 경락 카드에서 내 전화번호를 볼 수 있도록 허용합니다</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px",borderRadius:12,border:"2px solid "+(phonePublic?"#4ade80":"#e5e7eb"),background:phonePublic?"#f0fdf4":"#f9fafb",cursor:"pointer"}} onClick={function(){setPhonePublic(!phonePublic);}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:13,color:phonePublic?"#065f46":"#555"}}>{phonePublic?"🟢 공개 중":"🔴 비공개"}</div>
+            <div style={{fontSize:11,color:"#888",marginTop:2}}>{phonePublic?"구매자가 내 연락처를 볼 수 있습니다":"연락처가 구매자에게 표시되지 않습니다"}</div>
+          </div>
+          <div style={{width:44,height:24,borderRadius:12,background:phonePublic?"#40916c":"#d1d5db",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <div style={{position:"absolute",top:2,left:phonePublic?22:2,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,0.2)",transition:"left 0.2s"}}></div>
+          </div>
+        </div>
+        {phonePublic && (function(){
+          var info = getDealerInfo(user.dealerNo);
+          return info.phone ? (
+            <div style={{marginTop:10,background:"#ecfdf5",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#065f46"}}>
+              📞 공개될 연락처: <b>{info.phone}</b> ({info.name})
+            </div>
+          ) : (
+            <div style={{marginTop:10,background:"#fef9c3",borderRadius:10,padding:"10px 12px",fontSize:11,color:"#854d0e"}}>
+              ⚠️ 등록된 연락처가 없습니다. 관리자에게 문의하세요.
+            </div>
+          );
+        })()}
+      </div>
 
       {/* 알림음 설정 */}
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
@@ -2082,8 +2174,8 @@ function App() {
           <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:20,padding:"20px",marginBottom:14,color:"#fff"}}>
             <div style={{fontWeight:900,fontSize:17,marginBottom:8}}>🌿 농작교란?</div>
             <div style={{fontSize:13,lineHeight:1.8,color:"rgba(255,255,255,0.85)"}}>
-              전국 9개 중앙공영도매시장의 실시간 경락 정보를 제공하는 <b style={{color:"#4ade80"}}>수수료 없는 공영 중계 플랫폼</b>입니다.<br/>
-              중도매인과 소매 구매자를 직접 연결해 유통 단계를 줄입니다.
+              관심있는 상품이 있을 시 중도매인과 문의 혹은 <b style={{color:"#4ade80"}}>구매/예약 확정이 가능한 직거래 플랫폼</b>입니다.<br/>
+              전국 9개 중앙공영도매시장 실시간 경락가를 기반으로 중도매인과 소매 구매자를 직접 연결합니다.
             </div>
           </div>
 
@@ -2092,7 +2184,7 @@ function App() {
             {icon:"📡", title:"agromarket.kr 실시간 연동", desc:"전국 9개 시장 모두 agromarket.kr 데이터 기반 실시간 경락 정보 제공 · 1시간마다 자동 업데이트"},
             {icon:"📋", title:"대전 노은시장 상세정보 제공", desc:"노은시장은 기본 경락 정보 외에 낙찰자명·등급(특/상/보통)·출하자명·출하자 연락처까지 추가 제공"},
             {icon:"💰", title:"수수료 없는 공영 중계", desc:"플랫폼 수수료 0원 · 경락 정보를 투명하게 공개해 중도매인과 구매자 간 직접 거래 유도"},
-            {icon:"📞", title:"직거래 문의", desc:"각 카드의 전화 버튼으로 해당 도매시장 법인에 직접 연락 · 중간 유통 없는 직거래 지원"},
+            {icon:"📞", title:"직거래 문의 · 구매예약", desc:"관심있는 상품의 중도매인에게 직접 문의하거나, 보증금 납부 후 구매/예약 확정 · 중간 유통 없는 직거래 지원"},
           ].map(function(item){return (
             <div key={item.title} style={{background:"#fff",borderRadius:14,padding:"14px 16px",marginBottom:10,border:"1px solid #e5e7eb",display:"flex",gap:12,alignItems:"flex-start"}}>
               <div style={{fontSize:24,flexShrink:0}}>{item.icon}</div>
