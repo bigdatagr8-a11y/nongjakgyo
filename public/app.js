@@ -810,6 +810,13 @@ function RecordCard(props) {
                           <span style={{fontWeight:900,fontSize:16,color:G.mid}}>{price ? price.toLocaleString()+"원" : "-"}</span>
                           <span style={{fontSize:10,color:"#aaa",marginLeft:4}}>/ {weight}kg 단위</span>
                           {kgPrice && <div style={{fontSize:11,color:"#059669",fontWeight:600,marginTop:2}}>kg당 {kgPrice.toLocaleString()}원</div>}
+                          {sortBy==="smart" && price > 0 && (function(){
+                            var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
+                            if(!userSido) return null;
+                            var kgW = parseFloat(weight)||1;
+                            var ship = calcShipping(kgW, "대전", userSido);
+                            return <div style={{fontSize:11,color:"#7c3aed",fontWeight:700,marginTop:2}}>🚚 실속가 {(price+ship.total).toLocaleString()}원 <span style={{fontSize:9,fontWeight:400,color:"#a78bfa"}}>(배송비 {ship.total.toLocaleString()}원 포함)</span></div>;
+                          })()}
                         </div>
                         <div style={{display:"flex",gap:5}}>
                           {isSold
@@ -897,7 +904,6 @@ function RecordCard(props) {
                       <span style={{color:"#888"}}>총 거래금액</span>
                       <span style={{fontWeight:900,color:"#1e40af",fontSize:14}}>{total.toLocaleString()}원</span>
                     </div>
-                    );})}
                   </div>
                   <div style={{background:"linear-gradient(135deg,#ecfdf5,#d1fae5)",border:"1.5px solid #6ee7b7",borderRadius:12,padding:"14px",marginBottom:12}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
