@@ -1779,11 +1779,6 @@ function App() {
 
         {/* 거래실적 탭 */}
         {tab==="trade" && <div>
-          <div style={{background:"linear-gradient(135deg,#1e3a8a,#1e40af)",borderRadius:16,padding:"14px 16px",marginBottom:12,color:"#fff"}}>
-            <div style={{fontWeight:900,fontSize:16}}>📈 대전 노은시장 거래실적</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginTop:3}}>당일 경매 낙찰 데이터 · 중도매인 직거래 연결</div>
-            {tradeStatus==="ok" && <div style={{marginTop:6,fontSize:12,color:"#93c5fd",fontWeight:700}}>총 {tradeData.length}건</div>}
-          </div>
 
           {tradeStatus==="loading" && <div style={{textAlign:"center",padding:"40px 0"}}>
             <div style={{fontSize:32,marginBottom:10}}>⏳</div>
