@@ -36,6 +36,13 @@ var GROUP_DIST = {
 };
 var ZONE_EXTRA = {"같은":0,"인근":500,"먼":1000,"제주":3000};
 var ZONE_LABEL = {"같은":"같은 권역","인근":"인근 지역","먼":"먼 지역","제주":"제주/도서산간"};
+
+var UNIT_RANGES = [
+  {label:"5kg 이하",  min:0,  max:5},
+  {label:"5~10kg",    min:5,  max:10},
+  {label:"10~15kg",   min:10, max:15},
+  {label:"15kg 이상", min:15, max:9999},
+];
 function calcShipping(kg, fromSido, toSido, carrier) {
   carrier = carrier || "CJ대한통운";
   var rates = SHIPPING_RATES[carrier];
@@ -2020,12 +2027,6 @@ function App() {
   var gradeList = Array.from(new Set(activeData.map(function(r){return r.grade||"";}).filter(Boolean))).sort();
 
   // 단위 구간화
-  var UNIT_RANGES = [
-    {label:"5kg 이하",   min:0,   max:5},
-    {label:"5~10kg",     min:5,   max:10},
-    {label:"10~15kg",    min:10,  max:15},
-    {label:"15kg 이상",  min:15,  max:9999},
-  ];
   var unitList = UNIT_RANGES.map(function(r){ return r.label; });
 
   // 9개 시장 항상 고정 표시
