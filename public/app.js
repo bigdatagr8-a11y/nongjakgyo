@@ -1119,7 +1119,14 @@ var DEALER_INFO = {
 
 function getDealerInfo(no) {
   var key = String(no||"").trim();
-  return DEALER_INFO[key] || {name:"중도매인 #"+key, phone:""};
+  // "180 이진영" 형식 → 번호만 추출
+  var m = key.match(/^(\d+)/);
+  if(m) key = String(parseInt(m[1]));
+  var info = DEALER_INFO[key] || DEALER_INFO[key.padStart(3,"0")] || null;
+  if(info) return info;
+  // 이름이 같이 온 경우 이름 활용
+  var namePart = no ? String(no).replace(/^\d+\s*/, "").trim() : "";
+  return {name: namePart || ("중도매인 #"+key), phone:""};
 }
 var ACCOUNTS = {
   buyer:  { pw:"1234", role:"buyer",  name:"김소매",   biz:"소매상회",     bizNo:"123-45-67890", phone:"010-1234-5678" },
