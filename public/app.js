@@ -1649,32 +1649,6 @@ function App() {
   var latestDate = allDates[allDates.length-1] || TODAY;
   var prevAllDates = Array.from(new Set(prevData.map(function(r){return r.date;}).filter(Boolean))).sort();
   var prevDate = prevAllDates[prevAllDates.length-1] || YESTERDAY;
-
-  var filtered = activeData.filter(function(r){
-    // 대분류 품목 매칭
-    if(filterItem && getRepItem(r.itemName) !== filterItem) return false;
-    // 소분류 품목 매칭
-    if(filterSubItem && r.itemName !== filterSubItem) return false;
-    if(filterGrade && r.grade !== filterGrade) return false;
-    // 단위: 구간으로 매칭
-    if(filterUnit) {
-      var range = UNIT_RANGES.find(function(u){ return u.label === filterUnit; });
-      if(range) {
-        var kg = parseFloat((r.unit||"").replace(/kg.*/i,""))||0;
-        if(kg <= range.min || kg > range.max) return false;
-      }
-    }
-    if(filterMarket && r.market.name !== filterMarket) return false;
-    if(filterRegion && r.market.region !== filterRegion) return false;
-    if(keyword && !r.fullName.includes(keyword) && !r.market.name.includes(keyword) && !r.corp.includes(keyword) && !r.origin.includes(keyword)) return false;
-    return true;
-  }).sort(function(a,b){
-    if(sortBy==="price") return a.price - b.price;
-    if(sortBy==="date") return b.date > a.date ? 1 : -1;
-    if(sortBy==="qty") return b.qty - a.qty;
-    return 0;
-  });
-
   // 품목 대분류 매핑 (거래실적 + AT 데이터 전체)
   var ITEM_GROUP_MAP = {
     "수박":"수박","수박일반":"수박","애플수박":"수박","흑수박":"수박","꿀수박":"수박",
@@ -1713,6 +1687,33 @@ function App() {
     // 4. 매핑 없으면 원래 이름 그대로 (0611 새 품목 대비)
     return base || name;
   }
+
+
+  var filtered = activeData.filter(function(r){
+    // 대분류 품목 매칭
+    if(filterItem && getRepItem(r.itemName) !== filterItem) return false;
+    // 소분류 품목 매칭
+    if(filterSubItem && r.itemName !== filterSubItem) return false;
+    if(filterGrade && r.grade !== filterGrade) return false;
+    // 단위: 구간으로 매칭
+    if(filterUnit) {
+      var range = UNIT_RANGES.find(function(u){ return u.label === filterUnit; });
+      if(range) {
+        var kg = parseFloat((r.unit||"").replace(/kg.*/i,""))||0;
+        if(kg <= range.min || kg > range.max) return false;
+      }
+    }
+    if(filterMarket && r.market.name !== filterMarket) return false;
+    if(filterRegion && r.market.region !== filterRegion) return false;
+    if(keyword && !r.fullName.includes(keyword) && !r.market.name.includes(keyword) && !r.corp.includes(keyword) && !r.origin.includes(keyword)) return false;
+    return true;
+  }).sort(function(a,b){
+    if(sortBy==="price") return a.price - b.price;
+    if(sortBy==="date") return b.date > a.date ? 1 : -1;
+    if(sortBy==="qty") return b.qty - a.qty;
+    return 0;
+  });
+
 
   // 대분류 품목 리스트 (중복 제거 + 정렬)
   var itemList = Array.from(new Set(activeData.map(function(r){ return getRepItem(r.itemName); }).filter(Boolean))).sort();
