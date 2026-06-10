@@ -645,6 +645,7 @@ function RecordCard(props) {
   var cs = useState(false); var showChat = cs[0]; var setShowChat = cs[1];
   var pm = useState(null); var payModal = pm[0]; var setPayModal = pm[1]; // {dealerNo, tradeRow}
   var pp = useState(false); var payDone = pp[0]; var setPayDone = pp[1];
+  var pmt = useState(""); var payMethod = pmt[0]; var setPayMethod = pmt[1];
 
   // 노은시장 카드일 때 품목명으로 거래실적 매칭
   var matchedTrades = [];
@@ -938,12 +939,19 @@ function RecordCard(props) {
                   {!payDone && <div style={{background:"#f9fafb",borderRadius:12,padding:"12px",marginBottom:12}}>
                     <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단 선택</div>
                     {[["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
+                      var selected = payMethod === pm[0];
                       return (
-                        <div key={pm[0]} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,border:"1.5px solid #e5e7eb",marginBottom:6,background:"#fff",cursor:"pointer"}}
-                          onMouseEnter={function(e){e.currentTarget.style.borderColor="#40916c"; e.currentTarget.style.background="#f0fdf4";}}
-                          onMouseLeave={function(e){e.currentTarget.style.borderColor="#e5e7eb"; e.currentTarget.style.background="#fff";}}>
-                          <span style={{fontSize:14}}>{pm[1].split(" ")[0]}</span>
-                          <span style={{fontSize:13,fontWeight:500,color:"#333"}}>{pm[1].split(" ")[1]}</span>
+                        <div key={pm[0]}
+                          onClick={function(){ setPayMethod(pm[0]); }}
+                          style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:8,
+                            border:"1.5px solid "+(selected?"#40916c":"#e5e7eb"),
+                            marginBottom:6,
+                            background:selected?"#f0fdf4":"#fff",
+                            cursor:"pointer",
+                            transition:"all 0.15s"}}>
+                          <span style={{fontSize:18}}>{pm[1].split(" ")[0]}</span>
+                          <span style={{fontSize:13,fontWeight:selected?700:500,color:selected?"#065f46":"#333"}}>{pm[1].split(" ").slice(1).join(" ")}</span>
+                          {selected && <span style={{marginLeft:"auto",color:"#40916c",fontWeight:700,fontSize:12}}>✓ 선택됨</span>}
                         </div>
                       );
                     })}
@@ -974,9 +982,11 @@ function RecordCard(props) {
                         {dealerInfo.phone && <a href={"tel:"+dealerInfo.phone} style={{display:"block",marginTop:12,background:G.mid,color:"#fff",borderRadius:12,padding:"12px",textAlign:"center",fontWeight:700,fontSize:13,textDecoration:"none"}}>📞 {dealerInfo.name} 연락하기</a>}
                         <button onClick={function(){setPayModal(null);setPayDone(false);}} style={{width:"100%",marginTop:8,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>닫기</button>
                       </div>
-                    : <div style={{display:"flex",gap:8}}>
-                        <button onClick={function(){setPayModal(null);}} style={{flex:1,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>취소</button>
-                        <button onClick={async function(){
+                    : <div style={{display:"flex",gap:8,flexDirection:"column"}}>
+                        {!payMethod && <div style={{textAlign:"center",fontSize:12,color:"#e55",padding:"4px 0"}}>결제 수단을 먼저 선택해주세요</div>}
+                        <div style={{display:"flex",gap:8}}>
+                        <button onClick={function(){setPayModal(null);setPayMethod("");}} style={{flex:1,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>취소</button>
+                        <button disabled={!payMethod} onClick={async function(){
                           var pKey = payModal.no+"_"+payModal.itemKey;
                           try {
                             var res = await fetch("/api/purchase",{
@@ -986,7 +996,7 @@ function RecordCard(props) {
                                 dealerNo:payModal.no, itemKey:payModal.itemKey,
                                 buyer:(loginUser&&loginUser.name)||"구매자",
                                 itemName:itemName, grade:grade, price:price, qty:qty, unit:"개", origin:origin,
-                                deposit:deposit, total:total
+                                deposit:deposit, total:total, payMethod:payMethod
                               })
                             });
                             var json = await res.json();
@@ -995,7 +1005,8 @@ function RecordCard(props) {
                               setPayDone(true);
                             }
                           } catch(e){ alert("오류가 발생했습니다"); }
-                        }} style={{flex:2,background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer"}}>💳 보증금 {deposit.toLocaleString()}원 결제</button>
+                        }} style={{flex:2,background:payMethod?"linear-gradient(135deg,#0d2b1a,#40916c)":"#d1d5db",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:payMethod?"pointer":"not-allowed",opacity:payMethod?1:0.6}}>💳 보증금 {deposit.toLocaleString()}원 결제</button>
+                        </div>
                       </div>
                   }
                 </div>
@@ -1164,7 +1175,8 @@ function getDealerInfo(no) {
   // "180 이진영" 형식 → 번호만 추출
   var m = key.match(/^(\d+)/);
   if(m) key = String(parseInt(m[1]));
-  var info = DEALER_INFO[key] || DEALER_INFO[key.padStart(3,"0")] || null;
+  // 직접 찾기
+  var info = DEALER_INFO[key] || DEALER_INFO[key.padStart(3,"0")] || DEALER_INFO[key.padStart(2,"0")] || null;
   if(info) return info;
   // 이름이 같이 온 경우 이름 활용
   var namePart = no ? String(no).replace(/^\d+\s*/, "").trim() : "";
@@ -1172,7 +1184,7 @@ function getDealerInfo(no) {
 }
 var ACCOUNTS = {
   buyer:  { pw:"1234", role:"buyer",  name:"김소매",   biz:"소매상회",     bizNo:"123-45-67890", phone:"010-1234-5678" },
-  dealer: { pw:"1234", role:"dealer", name:"중도매인",  dealerNo:"45" },
+  dealer: { pw:"1234", role:"dealer", name:"중도매인",  dealerNo:"180" },
 };
 
 // ── 로그인 모달 ──
