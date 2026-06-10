@@ -1559,6 +1559,61 @@ function App() {
         }
         setTradeData(rows);
         setTradeStatus("ok");
+
+        // 거래실적 데이터로 노은시장 경락 카드 생성 (가장 최신 날짜만)
+        var NOEUN_MARKET = {id:8, name:"대전 노은시장", region:"대전", sheetName:"대전노은", phone:"", corp:"중부청과"};
+
+        // 날짜 정규화: 2026.06.10 → 2026-06-10
+        function normDate(d){ return (d||"").split(" ")[0].replace(/\./g,"-").trim(); }
+
+        // 가장 최신 날짜 추출
+        var allTradeDates = rows.map(function(r){ return normDate(r["경매일자"]||r["매매일자"]||""); }).filter(Boolean);
+        var latestTradeDate = allTradeDates.sort().pop() || "";
+
+        // 최신 날짜 행만 필터
+        var todayRows = latestTradeDate
+          ? rows.filter(function(r){ return normDate(r["경매일자"]||r["매매일자"]||"") === latestTradeDate; })
+          : rows;
+
+        var itemGroups = {};
+        todayRows.forEach(function(row){
+          var itemName = (row["품목명"]||row["품목"]||"").trim();
+          if(!itemName) return;
+          var price = parseInt((row["단가"]||"0").replace(/,/g,""))||0;
+          if(!price) return;
+          if(!itemGroups[itemName]) itemGroups[itemName] = [];
+          itemGroups[itemName].push(row);
+        });
+
+        var noeunCards = Object.keys(itemGroups).map(function(itemName, i){
+          var rows2 = itemGroups[itemName];
+          var prices = rows2.map(function(r){ return parseInt((r["단가"]||"0").replace(/,/g,"")); }).filter(function(p){ return p>0; });
+          var avgPrice = prices.length ? Math.round(prices.reduce(function(a,b){return a+b;},0)/prices.length) : 0;
+          var totalQty = rows2.reduce(function(s,r){ return s+(parseInt((r["수량"]||"0").replace(/,/g,""))||0); },0);
+          var sampleWeight = (rows2[0]&&rows2[0]["중량"]) ? rows2[0]["중량"] : "";
+          return {
+            id: "noeun_"+i,
+            date: latestTradeDate,
+            market: NOEUN_MARKET,
+            itemName: itemName,
+            fullName: itemName,
+            variety: "",
+            origin: (rows2[0]&&rows2[0]["산지명"]) ? rows2[0]["산지명"] : "",
+            qty: totalQty,
+            unit: sampleWeight ? sampleWeight+"kg" : "박스",
+            price: avgPrice,
+            corp: "중부청과",
+            emoji: getEmoji(itemName),
+            category: getCategory(itemName),
+            isMock: false,
+            bidder: "", grade: "", shipperName: "", shipperPhone: "",
+          };
+        }).filter(function(r){ return r.price > 0; });
+
+        // AT데이터(노은 제외)에 노은 카드 추가
+        setData(function(prev){ return prev.concat(noeunCards); });
+        setLiveCount(noeunCards.length);
+
       } catch(e) {
         if(!cancelled) setTradeStatus("error");
       }
