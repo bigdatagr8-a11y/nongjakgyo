@@ -1458,7 +1458,7 @@ function DealerMyPage(props) {
 
 // ── 메인 앱 ──
 function App() {
-  var t1 = useState("search"); var tab = t1[0]; var setTab = t1[1];
+  var t1 = useState("trade"); var tab = t1[0]; var setTab = t1[1];
   var f1 = useState(""); var filterItem = f1[0]; var setFilterItem = f1[1];
   var f2 = useState(""); var filterRegion = f2[0]; var setFilterRegion = f2[1];
   var f3 = useState(""); var keyword = f3[0]; var setKeyword = f3[1];
@@ -1727,7 +1727,7 @@ function App() {
 
           {/* 탭 */}
           <div style={{display:"flex",gap:2,paddingBottom:0}}>
-            {[["search","🔍 경락"],["trade","📈 거래실적"],["map","🗺️ 지도"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
+            {[["trade","📈 거래실적"],["search","🔍 경락"],["map","🗺️ 지도"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
               var active = tab===t[0];
               return <button key={t[0]} onClick={function(){setTab(t[0]); if(t[0]==="mypage"&&!loginUser) setShowLogin(true);}} style={{flex:1,padding:"10px 0",border:"none",background:active?"rgba(255,255,255,0.15)":"transparent",color:active?"#fff":"rgba(255,255,255,0.55)",fontWeight:active?800:400,fontSize:10,cursor:"pointer",borderBottom:active?"2px solid #52b788":"2px solid transparent",borderRadius:"6px 6px 0 0"}}>
                 {t[1]}
@@ -1846,9 +1846,10 @@ function App() {
 
         {/* 거래실적 탭 */}
         {tab==="trade" && <div>
-          <div style={{background:"#fff",borderRadius:16,padding:"12px 16px",marginBottom:12,border:"1px solid #bfdbfe"}}>
-            <div style={{fontWeight:900,fontSize:15,color:"#1e40af"}}>📈 거래실적</div>
-            <div style={{fontSize:11,color:"#888",marginTop:2}}>대전 노은시장 · 당일 거래 데이터 · 발표일 데이터로 자동 교체</div>
+          <div style={{background:"linear-gradient(135deg,#1e3a8a,#1e40af)",borderRadius:16,padding:"14px 16px",marginBottom:12,color:"#fff"}}>
+            <div style={{fontWeight:900,fontSize:16}}>📈 대전 노은시장 거래실적</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginTop:3}}>당일 경매 낙찰 데이터 · 중도매인 직거래 연결</div>
+            {tradeStatus==="ok" && <div style={{marginTop:6,fontSize:12,color:"#93c5fd",fontWeight:700}}>총 {tradeData.length}건</div>}
           </div>
 
           {tradeStatus==="loading" && <div style={{textAlign:"center",padding:"40px 0"}}>
@@ -1862,48 +1863,122 @@ function App() {
           </div>}
 
           {tradeStatus==="ok" && tradeData.length > 0 && (function(){
-            var COLS = ["경매일자","경매시간","출하자","산지명","품목명","등급","수량","단가","금액","낙찰 중도매인"];
+            // 품목별 그룹화
+            var itemGroups = {};
+            tradeData.forEach(function(row){
+              var item = (row["품목명"]||row["품목"]||"기타").trim();
+              if(!itemGroups[item]) itemGroups[item] = [];
+              itemGroups[item].push(row);
+            });
+
             return (
-              <div>
-                <div style={{fontSize:12,color:"#888",marginBottom:10}}>총 <b style={{color:"#1e40af"}}>{tradeData.length}</b>건</div>
-                <div style={{overflowX:"auto",borderRadius:12,border:"1px solid #bfdbfe",boxShadow:"0 2px 8px rgba(30,64,175,0.06)"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:560}}>
-                    <thead>
-                      <tr style={{background:"#1e3a8a"}}>
-                        {COLS.map(function(h){return(
-                          <th key={h} style={{padding:"9px 8px",color:"#bfdbfe",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
-                        );})}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tradeData.map(function(row,i){return(
-                        <tr key={i} style={{background:i%2===0?"#fff":"#eff6ff",borderBottom:"1px solid #e0e7ff"}}>
-                          {COLS.map(function(h){
-                            var val = (row[h]||"-").trim();
-                            var isPrice = h==="단가"||h==="금액";
-                            var isGrade = h==="등급";
-                            if(isPrice && val!=="-") val = parseInt(val.replace(/,/g,"")).toLocaleString()+"원";
-                            return (
-                              <td key={h} style={{padding:"7px 8px",whiteSpace:"nowrap",
-                                color: isPrice ? G.mid : "#333",
-                                fontWeight: isPrice ? 700 : 400}}>
-                                {isGrade && val!=="-"
-                                  ? <span style={{background:"#fef9c3",color:"#854d0e",borderRadius:6,padding:"1px 6px",fontWeight:700}}>{val}</span>
-                                  : val}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );})}
-                    </tbody>
-                  </table>
-                </div>
-                <div style={{marginTop:10,fontSize:11,color:"#aaa",textAlign:"center"}}>
-                  ※ 낙찰 중도매인 번호는 가번호로 표시됩니다 · 발표일에 실제 데이터로 교체 예정
-                </div>
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                {Object.keys(itemGroups).map(function(itemName){
+                  var rows = itemGroups[itemName];
+                  var emoji = getEmoji(itemName);
+                  // 중도매인별 그룹화
+                  var dealerMap = {};
+                  rows.forEach(function(r){
+                    var no = String(r["낙찰 중도매인"]||"").trim();
+                    if(!dealerMap[no]) dealerMap[no] = [];
+                    dealerMap[no].push(r);
+                  });
+                  var dealers = Object.keys(dealerMap);
+                  var allPrices = rows.map(function(r){ return parseInt((r["단가"]||"0").replace(/,/g,"")); }).filter(function(p){ return p>0; });
+                  var minPrice = allPrices.length ? Math.min.apply(null,allPrices) : 0;
+                  var maxPrice = allPrices.length ? Math.max.apply(null,allPrices) : 0;
+                  var sampleWeight = (rows[0]&&rows[0]["중량"]) ? rows[0]["중량"] : "";
+
+                  return (
+                    <div key={itemName} style={{background:"#fff",borderRadius:16,border:"1px solid #e0e7ff",overflow:"hidden",boxShadow:"0 2px 8px rgba(30,64,175,0.06)"}}>
+                      {/* 품목 헤더 */}
+                      <div style={{background:"linear-gradient(90deg,#1e3a8a,#1e40af)",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{fontSize:22}}>{emoji}</span>
+                          <div>
+                            <div style={{color:"#fff",fontWeight:800,fontSize:14}}>{itemName}</div>
+                            <div style={{color:"#93c5fd",fontSize:10,marginTop:1}}>{rows.length}건 · {dealers.length}명 낙찰</div>
+                          </div>
+                        </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{color:"#4ade80",fontWeight:900,fontSize:15}}>
+                            {minPrice===maxPrice ? minPrice.toLocaleString() : minPrice.toLocaleString()+"~"+maxPrice.toLocaleString()}원
+                          </div>
+                          <div style={{color:"rgba(255,255,255,0.6)",fontSize:10}}>
+                            {sampleWeight ? "/ "+sampleWeight+"kg 단위" : "/ 단위"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 거래 내역 테이블 */}
+                      <div style={{overflowX:"auto"}}>
+                        <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:480}}>
+                          <thead>
+                            <tr style={{background:"#eff6ff"}}>
+                              {["경매시간","산지","등급","중량","수량","단가","kg당","중도매인","문의"].map(function(h){return(
+                                <th key={h} style={{padding:"6px 8px",color:"#1e40af",fontWeight:700,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
+                              );})}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map(function(row,i){
+                              var weight   = parseFloat(row["중량"]||0);
+                              var price    = parseInt((row["단가"]||"0").replace(/,/g,""))||0;
+                              var qty      = parseInt((row["수량"]||"0").replace(/,/g,""))||0;
+                              var kgPrice  = (weight>0&&price>0) ? Math.round(price/weight) : null;
+                              var grade    = (row["등급"]||"").trim();
+                              var no       = String(row["낙찰 중도매인"]||"").trim();
+                              var info     = getDealerInfo(no);
+                              var gradeStyle = {
+                                "특":{bg:"#fef9c3",color:"#854d0e"},"상":{bg:"#dbeafe",color:"#1e40af"},
+                                "보통":{bg:"#f3f4f6",color:"#555"},"1":{bg:"#fef9c3",color:"#854d0e"},
+                                "2":{bg:"#dbeafe",color:"#1e40af"},"3":{bg:"#f3f4f6",color:"#555"},
+                              }[grade]||{bg:"#f3f4f6",color:"#555"};
+                              return (
+                                <tr key={i} style={{background:i%2===0?"#fff":"#f8faff",borderBottom:"1px solid #e8edf8"}}
+                                  onMouseEnter={function(e){e.currentTarget.style.background="#eff6ff";}}
+                                  onMouseLeave={function(e){e.currentTarget.style.background=i%2===0?"#fff":"#f8faff";}}>
+                                  <td style={{padding:"6px 8px",color:"#64748b",fontSize:10}}>{(row["경매시간"]||"-")}</td>
+                                  <td style={{padding:"6px 8px",color:"#1e293b",fontWeight:500}}>{(row["산지명"]||"-")}</td>
+                                  <td style={{padding:"6px 8px"}}>
+                                    {grade ? <span style={{background:gradeStyle.bg,color:gradeStyle.color,borderRadius:6,padding:"1px 6px",fontWeight:700}}>{grade}</span> : <span style={{color:"#ccc"}}>-</span>}
+                                  </td>
+                                  <td style={{padding:"6px 8px",color:"#1e293b",fontWeight:600}}>{weight ? weight+"kg" : "-"}</td>
+                                  <td style={{padding:"6px 8px",color:"#1e293b"}}>{qty ? qty+"개" : "-"}</td>
+                                  <td style={{padding:"6px 8px"}}>
+                                    <div style={{color:G.mid,fontWeight:700}}>{price ? price.toLocaleString()+"원" : "-"}</div>
+                                    <div style={{color:"#aaa",fontSize:9}}>{weight ? weight+"kg 단위" : ""}</div>
+                                  </td>
+                                  <td style={{padding:"6px 8px"}}>
+                                    {kgPrice ? <span style={{background:"#ecfdf5",color:"#065f46",borderRadius:6,padding:"2px 6px",fontWeight:700,fontSize:10}}>{kgPrice.toLocaleString()}원</span> : <span style={{color:"#ccc"}}>-</span>}
+                                  </td>
+                                  <td style={{padding:"6px 8px",whiteSpace:"nowrap"}}>
+                                    <div style={{fontWeight:600,fontSize:10,color:"#1e293b"}}>{info.name}</div>
+                                    {info.phone && <a href={"tel:"+info.phone} style={{color:G.light,fontSize:9,textDecoration:"none"}}>📞 {info.phone}</a>}
+                                  </td>
+                                  <td style={{padding:"5px 6px"}}>
+                                    <button onClick={function(){
+                                      window._chatDealer={no:no, tradeRow:row, chatType:"inquiry"};
+                                      // 채팅 모달은 경락탭에서 열리므로 탭 전환 후 오픈
+                                    }} style={{background:"#f0fdf4",color:"#166534",border:"1px solid #bbf7d0",borderRadius:6,padding:"3px 7px",fontSize:10,fontWeight:700,cursor:"pointer"}}>❓</button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })()}
+
+          {tradeStatus==="ok" && tradeData.length===0 && <div style={{textAlign:"center",padding:"40px 0"}}>
+            <div style={{fontSize:36,marginBottom:10}}>📋</div>
+            <div style={{fontSize:13,color:"#888"}}>아직 거래 데이터가 없습니다</div>
+          </div>}
         </div>}
 
         {/* 지도 탭 */}
