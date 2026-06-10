@@ -1395,6 +1395,7 @@ function App() {
   var f1 = useState(""); var filterItem = f1[0]; var setFilterItem = f1[1];
   var f1b = useState(""); var filterGrade = f1b[0]; var setFilterGrade = f1b[1];
   var f1c = useState(""); var filterUnit = f1c[0]; var setFilterUnit = f1c[1];
+  var f1d = useState(""); var filterSubItem = f1d[0]; var setFilterSubItem = f1d[1];
   var f2 = useState(""); var filterRegion = f2[0]; var setFilterRegion = f2[1];
   var f3 = useState(""); var keyword = f3[0]; var setKeyword = f3[1];
   var f4 = useState("price"); var sortBy = f4[0]; var setSortBy = f4[1];
@@ -1650,9 +1651,19 @@ function App() {
   var prevDate = prevAllDates[prevAllDates.length-1] || YESTERDAY;
 
   var filtered = activeData.filter(function(r){
-    if(filterItem && r.itemName !== filterItem) return false;
+    // 대분류 품목 매칭
+    if(filterItem && getRepItem(r.itemName) !== filterItem) return false;
+    // 소분류 품목 매칭
+    if(filterSubItem && r.itemName !== filterSubItem) return false;
     if(filterGrade && r.grade !== filterGrade) return false;
-    if(filterUnit && r.unit !== filterUnit) return false;
+    // 단위: 구간으로 매칭
+    if(filterUnit) {
+      var range = UNIT_RANGES.find(function(u){ return u.label === filterUnit; });
+      if(range) {
+        var kg = parseFloat((r.unit||"").replace(/kg.*/i,""))||0;
+        if(kg <= range.min || kg > range.max) return false;
+      }
+    }
     if(filterMarket && r.market.name !== filterMarket) return false;
     if(filterRegion && r.market.region !== filterRegion) return false;
     if(keyword && !r.fullName.includes(keyword) && !r.market.name.includes(keyword) && !r.corp.includes(keyword) && !r.origin.includes(keyword)) return false;
@@ -1664,9 +1675,54 @@ function App() {
     return 0;
   });
 
-  var itemList = Array.from(new Set(activeData.map(function(r){return r.itemName;}).filter(Boolean))).sort();
+  // 품목 대분류 매핑
+  var ITEM_GROUP_MAP = {
+    "수박":"수박","애플수박":"수박","흑수박":"수박","꿀수박":"수박",
+    "사과":"사과","배":"배","복숭아":"복숭아","포도":"포도","딸기":"딸기",
+    "산딸기":"딸기","참외":"참외","멜론":"멜론","수박일반":"수박",
+    "바나나":"바나나","망고":"망고","파인애플":"파인애플","오렌지":"오렌지",
+    "레몬":"레몬","체리":"체리","블루베리":"블루베리","키위":"키위",
+    "참다래":"키위","자두":"자두","살구":"살구","아보카도":"아보카도",
+    "아보카드":"아보카도","토마토":"토마토","완숙토마토":"토마토",
+    "방울토마토":"토마토","대추방울":"토마토","감":"감","귤":"귤","한라봉":"귤",
+    "천혜향":"귤","황금향":"귤","레드향":"귤","오디":"오디","무화과":"무화과",
+    "수입레몬":"레몬","수입자몽":"자몽","자몽":"자몽","용과":"용과",
+    "신선":"기타","신비":"복숭아",
+  };
+  function getRepItem(name) {
+    if(!name) return name;
+    // 괄호 앞 핵심 이름 추출
+    var base = name.replace(/\(.*?\)/g,"").replace(/일반|BOX|box|꼭지절단|수입/g,"").trim();
+    // 매핑 테이블에서 찾기
+    for(var key in ITEM_GROUP_MAP) {
+      if(base.includes(key) || name.includes(key)) return ITEM_GROUP_MAP[key];
+    }
+    return base || name;
+  }
+
+  // 대분류 품목 리스트 (중복 제거 + 정렬)
+  var itemList = Array.from(new Set(activeData.map(function(r){ return getRepItem(r.itemName); }).filter(Boolean))).sort();
+
+  // 품목 선택 시 해당 소분류 리스트
+  var subItemList = filterItem
+    ? Array.from(new Set(
+        activeData
+          .filter(function(r){ return getRepItem(r.itemName) === filterItem; })
+          .map(function(r){ return r.itemName; })
+      )).sort()
+    : [];
+
   var gradeList = Array.from(new Set(activeData.map(function(r){return r.grade||"";}).filter(Boolean))).sort();
-  var unitList  = Array.from(new Set(activeData.map(function(r){return r.unit||"";}).filter(Boolean))).sort();
+
+  // 단위 구간화
+  var UNIT_RANGES = [
+    {label:"5kg 이하",   min:0,   max:5},
+    {label:"5~10kg",     min:5,   max:10},
+    {label:"10~15kg",    min:10,  max:15},
+    {label:"15kg 이상",  min:15,  max:9999},
+  ];
+  var unitList = UNIT_RANGES.map(function(r){ return r.label; });
+
   // 9개 시장 항상 고정 표시
   var marketList = MARKETS.map(function(m){ return m.name; });
 
@@ -1755,11 +1811,22 @@ function App() {
             {/* 품목 선택 */}
             <div style={{marginBottom:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목</div>
-              <select value={filterItem} onChange={function(e){setFilterItem(e.target.value); setFilterGrade(""); setFilterUnit("");}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+              <select value={filterItem} onChange={function(e){setFilterItem(e.target.value); setFilterSubItem(""); setFilterGrade(""); setFilterUnit("");}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
                 <option value="">전체 품목</option>
                 {itemList.map(function(name){return <option key={name} value={name}>{getEmoji(name)+" "+name}</option>;})}
               </select>
             </div>
+
+            {/* 품목상세 - 대분류 선택 시만 표시 */}
+            {filterItem && subItemList.length > 1 && (
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목 상세</div>
+                <select value={filterSubItem} onChange={function(e){setFilterSubItem(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+                  <option value="">전체 ({subItemList.length}종)</option>
+                  {subItemList.map(function(name){return <option key={name} value={name}>{name}</option>;})}
+                </select>
+              </div>
+            )}
 
             {/* 등급 + 단위 */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
