@@ -2277,6 +2277,332 @@ function DealerMyPage(props) {
   );
 }
 
+// ── 품목별 기본 단중 (개/통당 kg) ──
+var ITEM_KG = {
+  "수박":9,"메론":2,"참외":0.45,"호박":0.8,"오이":0.2,"토마토":0.18,"방울토마토":0.5,"파프리카":0.2,"가지":0.2,
+  "사과":0.3,"배":0.4,"감귤":0.12,"딸기":0.5,"포도":0.55,"복숭아":0.25,"자두":0.08,"체리":0.015,"블루베리":0.12,
+  "배추":3,"양배추":1.5,"상추":0.03,"시금치":0.3,"파":0.1,"부추":0.1,"깻잎":0.02,
+  "양파":0.2,"마늘":0.05,"무":1.5,"당근":0.15,"생강":0.05,
+  "고추":0.1,"바나나":0.15,"오렌지":0.25,"레몬":0.1,"파인애플":0.9,"망고":0.4,
+};
+
+var ITEM_UNITS = {
+  "수박":"통","메론":"통","참외":"개","호박":"개","오이":"개","토마토":"개","방울토마토":"팩(500g)","파프리카":"개","가지":"개",
+  "사과":"개","배":"개","감귤":"개","딸기":"팩(500g)","포도":"송이","복숭아":"개","자두":"개","체리":"팩(15g)","블루베리":"팩(120g)",
+  "배추":"포기","양배추":"통","상추":"봉(30g)","시금치":"단(300g)","파":"단(100g)","부추":"단(100g)","깻잎":"봉(20g)",
+  "양파":"개","마늘":"통","무":"개","당근":"개","생강":"개","고추":"개",
+  "바나나":"개","오렌지":"개","레몬":"개","파인애플":"개","망고":"개",
+};
+
+var SIDO_LIST = ["서울","경기","인천","대전","세종","충남","충북","부산","대구","경북","경남","울산","광주","전북","전남","강원","제주"];
+var CARRIER_ORDER = ["CJ대한통운","로젠택배","한진택배","우체국택배"];
+var BOX_MAX_KG = 15;
+
+var PARCEL_CONTACTS = [
+  {name:"CJ대한통운", phone:"1588-1255", url:"https://www.cjlogistics.com", desc:"전국 당일·익일 배송"},
+  {name:"로젠택배",   phone:"1588-9988", url:"https://www.logen.co.kr",    desc:"합리적인 농산물 배송"},
+  {name:"한진택배",   phone:"1588-0011", url:"https://www.hanjin.com",      desc:"신속·안전 배송"},
+  {name:"우체국택배", phone:"1588-1300", url:"https://parcel.epost.go.kr",  desc:"전국 도서산간 포함"},
+];
+var FREIGHT_CONTACTS = [
+  {name:"화물맨",    phone:"1666-0027", url:"https://www.hwamulman.com",    desc:"화물 중개 플랫폼 · 앱 운영"},
+  {name:"고고씽",    phone:"1588-4700", url:"https://www.gogosing.com",     desc:"퀵·소형 화물 전문"},
+  {name:"바로고",    phone:"1522-0110", url:"https://www.barogo.com",       desc:"당일 배송 전문"},
+  {name:"용달119",   phone:"1588-0119", url:"https://www.yongdal119.co.kr", desc:"1톤 용달·화물차 연결"},
+];
+
+var MARKET_KM = {
+  "123-45-67890": {1:160, 2:250, 3:140, 4:165, 5:165, 6:170, 7:8.5, 8:3.5, 9:240},
+  "234-56-78901": {1:4,   2:390, 3:280, 4:55,  5:45,  6:310, 7:160, 8:165, 9:380},
+  "345-67-89012": {1:380, 2:15,  3:130, 4:400, 5:395, 6:270, 7:250, 8:255, 9:80},
+  "456-78-90123": {1:30,  2:370, 3:230, 4:60,  5:50,  6:260, 7:120, 8:125, 9:330},
+  "567-89-01234": {1:170, 2:290, 3:190, 4:180, 5:175, 6:90,  7:55,  8:60,  9:280},
+  "678-90-12345": {1:300, 2:270, 3:220, 4:330, 5:325, 6:10,  7:170, 8:175, 9:280},
+};
+
+function parcelCostPerBox(kg, km, carrier) {
+  var rates = SHIPPING_RATES[carrier||"CJ대한통운"];
+  var base = rates[rates.length-1].base;
+  for(var i=0;i<rates.length;i++){ if(kg<=rates[i].max){ base=rates[i].base; break; } }
+  var extra = km<=30 ? 0 : km<=100 ? 500 : km<=200 ? 1000 : km<=300 ? 1500 : 2000;
+  return base + extra;
+}
+
+function freightCostByKm(totalKg, km) {
+  var cost = 60000;
+  if(km <= 100)      cost += km * 800;
+  else if(km <= 300) cost += 100*800 + (km-100)*600;
+  else               cost += 100*800 + 200*600 + (km-300)*400;
+  if(totalKg > 500)  cost += Math.ceil((totalKg-500)/500)*50000;
+  return Math.round(cost/1000)*1000;
+}
+
+function ShippingCalcTab(props) {
+  var loginUser = props.loginUser;
+  var auctionData = props.auctionData || [];
+
+  var _saved = {};
+  try { _saved = JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); } catch(e){}
+  var bizAddr = _saved.bizAddr || "";
+  var bizSido = _saved.bizSido || "";
+  var bizNum  = _saved.bizNum  || "";
+  var distMap = MARKET_KM[bizNum] || null;
+
+  var s1=useState([]); var items=s1[0]; var setItems=s1[1];
+  var s2=useState({name:"",qty:"",kgEach:""}); var draft=s2[0]; var setDraft=s2[1];
+  var s3=useState(null); var result=s3[0]; var setResult=s3[1];
+  var s4=useState(bizSido||""); var fallbackSido=s4[0]; var setFallbackSido=s4[1];
+  var s5=useState("parcel"); var contactTab=s5[0]; var setContactTab=s5[1];
+
+  var isLoggedIn = !!loginUser;
+  var effectiveSido = bizSido || fallbackSido;
+
+  var itemOptions = (function() {
+    if(auctionData.length > 0) {
+      var seen = {};
+      auctionData.forEach(function(r){ if(r.itemName) seen[r.itemName]=true; });
+      return Object.keys(seen).sort();
+    }
+    return Object.keys(ITEM_KG).sort();
+  })();
+
+  function onDraftName(name) {
+    setDraft(function(d){ return Object.assign({},d,{name:name}); });
+  }
+  function addItem() {
+    var qty = parseFloat(draft.qty);
+    var kgEach = parseFloat(draft.kgEach);
+    if(!draft.name.trim() || !qty || qty<=0 || !kgEach || kgEach<=0) return;
+    var totalKg = Math.round(qty*kgEach*100)/100;
+    setItems(function(p){ return p.concat([{id:Date.now(),name:draft.name.trim(),qty:qty,kgEach:kgEach,totalKg:totalKg}]); });
+    setDraft({name:"",qty:"",kgEach:""});
+    setResult(null);
+  }
+  function removeItem(id) { setItems(function(p){ return p.filter(function(i){ return i.id!==id; }); }); setResult(null); }
+
+  var totalKg = Math.round(items.reduce(function(s,i){ return s+i.totalKg; },0)*100)/100;
+
+  function getKmForMarket(market) {
+    if(distMap && distMap[market.id]) return distMap[market.id];
+    var REG_KM = {
+      "서울":  {서울:10,경기:45,인천:30,대전:160,충남:180,충북:130,부산:400,대구:290,경북:310,경남:380,울산:385,광주:310,전북:240,전남:300,강원:175,제주:500},
+      "경기":  {서울:40,경기:30,인천:50,대전:130,충남:150,충북:110,부산:380,대구:270,경북:290,경남:360,울산:365,광주:295,전북:230,전남:290,강원:150,제주:480},
+      "인천":  {서울:30,경기:40,인천:10,대전:150,충남:165,충북:130,부산:400,대구:300,경북:320,경남:390,울산:395,광주:320,전북:250,전남:315,강원:200,제주:500},
+      "대전":  {서울:160,경기:130,인천:150,대전:15,충남:55,충북:50,부산:250,대구:140,경북:180,경남:230,울산:240,광주:165,전북:100,전남:155,강원:175,제주:430},
+      "충남":  {서울:170,경기:145,인천:165,대전:55,충남:40,충북:80,부산:280,대구:175,경북:205,경남:260,울산:270,광주:165,전북:90,전남:155,강원:210,제주:445},
+      "광주":  {서울:310,경기:295,인천:325,대전:165,충남:165,충북:195,부산:270,대구:220,경북:255,경남:245,울산:280,광주:10,전북:70,전남:60,강원:385,제주:300},
+      "부산":  {서울:390,경기:375,인천:400,대전:250,충남:285,충북:275,부산:15,대구:100,경북:120,경남:60,울산:80,광주:270,전북:245,전남:275,강원:385,제주:440},
+      "대구":  {서울:290,경기:270,인천:300,대전:140,충남:175,충북:135,부산:100,대구:15,경북:50,경남:90,울산:110,광주:220,전북:180,전남:215,강원:255,제주:400},
+      "울산":  {서울:385,경기:365,인천:395,대전:240,충남:275,충북:260,부산:80,대구:110,경북:70,경남:80,울산:15,광주:280,전북:245,전남:280,강원:345,제주:430},
+    };
+    var row = REG_KM[market.region];
+    if(row && row[effectiveSido]) return row[effectiveSido];
+    return 200;
+  }
+
+  function calculate() {
+    if(items.length===0||!effectiveSido) return;
+    var markets = MARKETS.map(function(market) {
+      var km = getKmForMarket(market);
+      var parcel = {};
+      CARRIER_ORDER.forEach(function(carrier) {
+        var total = 0;
+        items.forEach(function(item) {
+          total += item.qty * parcelCostPerBox(item.kgEach, km, carrier);
+        });
+        parcel[carrier] = total;
+      });
+      var cheapParcel = Math.min.apply(null, Object.values(parcel));
+      var freight = freightCostByKm(totalKg, km);
+      return {market:market, km:km, parcel:parcel, cheapParcel:cheapParcel, freight:freight};
+    });
+    markets.sort(function(a,b){ return a.cheapParcel - b.cheapParcel; });
+    setResult({markets:markets, totalKg:totalKg, bizAddr:bizAddr, toSido:effectiveSido, isRealDist:!!distMap});
+  }
+
+  var canCalc = items.length>0 && !!effectiveSido;
+
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:20,padding:"20px",marginBottom:14,color:"#fff"}}>
+        <div style={{fontWeight:900,fontSize:17,marginBottom:4}}>🚚 배송 견적 계산기</div>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.75)"}}>전국 도매시장 → 내 사업장까지 택배·화물 견적 비교</div>
+      </div>
+
+      {isLoggedIn && bizAddr
+        ? <div style={{background:"#f0fdf4",borderRadius:14,padding:"12px 14px",border:"1px solid #d1fae5",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:22}}>📍</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10,color:"#888",marginBottom:2}}>도착지 (자동 설정 — MY 탭)</div>
+              <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>{bizAddr}</div>
+              {!distMap && <div style={{fontSize:10,color:"#d97706",marginTop:2}}>* 현재 주소는 권역 기반 거리로 추정됩니다</div>}
+            </div>
+          </div>
+        : <div style={{background:"#fff",borderRadius:14,padding:"14px",border:"1px solid #e5e7eb",marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:13,color:G.mid,marginBottom:8}}>
+              📍 도착지 선택
+              {isLoggedIn && <span style={{fontSize:11,fontWeight:400,color:"#aaa",marginLeft:6}}>— MY 탭에서 주소 저장 시 자동 설정</span>}
+            </div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              {SIDO_LIST.map(function(s){
+                var on = fallbackSido===s;
+                return <button key={s} onClick={function(){setFallbackSido(s);setResult(null);}} style={{padding:"5px 11px",borderRadius:20,border:"1.5px solid "+(on?G.mid:"#e5e7eb"),background:on?"#f0fdf4":"#fff",color:on?G.mid:"#888",fontSize:11,fontWeight:on?700:400,cursor:"pointer"}}>{s}</button>;
+              })}
+            </div>
+          </div>
+      }
+
+      <div style={{background:"#fff",borderRadius:16,padding:16,border:"1px solid #e5e7eb",marginBottom:12}}>
+        <div style={{fontWeight:800,fontSize:13,color:G.mid,marginBottom:12}}>🛒 구매 상품 목록</div>
+        <div style={{background:"#f8fffe",borderRadius:12,padding:"12px",border:"1px solid #d1fae5",marginBottom:12}}>
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:10,fontWeight:700,color:"#888",marginBottom:3}}>품목</div>
+            <input list="ship-datalist" value={draft.name} onChange={function(e){onDraftName(e.target.value);}} placeholder="수박, 사과, 참외..." style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:8,padding:"8px 9px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+            <datalist id="ship-datalist">{itemOptions.map(function(k){ return <option key={k} value={k}/>; })}</datalist>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:"#888",marginBottom:3}}>수량 (박스)</div>
+              <input type="number" value={draft.qty} min="1" placeholder="예: 5" onChange={function(e){setDraft(function(d){return Object.assign({},d,{qty:e.target.value});});}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:8,padding:"8px 9px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:"#888",marginBottom:3}}>박스당 중량 (kg)</div>
+              <input type="number" value={draft.kgEach} step="0.1" min="0.1" placeholder="예: 10" onChange={function(e){setDraft(function(d){return Object.assign({},d,{kgEach:e.target.value});});}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:8,padding:"8px 9px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+            </div>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            {(draft.qty&&draft.kgEach)
+              ? <div style={{fontSize:11,color:G.light}}>합계 중량: {Math.round(parseFloat(draft.qty)*parseFloat(draft.kgEach)*10)/10}kg</div>
+              : <div/>
+            }
+            <button onClick={addItem} style={{padding:"9px 20px",background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ 추가</button>
+          </div>
+        </div>
+        {items.length===0
+          ? <div style={{textAlign:"center",padding:"18px 0",color:"#ccc",fontSize:13}}>상품을 추가해 주세요</div>
+          : <div>
+              {items.map(function(item){
+                return (
+                  <div key={item.id} style={{display:"flex",alignItems:"center",padding:"9px 12px",borderRadius:10,background:"#f0fdf4",border:"1px solid #d1fae5",marginBottom:6}}>
+                    <div style={{flex:1}}>
+                      <span style={{fontWeight:700,fontSize:13}}>{getEmoji(item.name)} {item.name}</span>
+                      <span style={{fontSize:11,color:"#666",marginLeft:8}}>{item.qty}박스</span>
+                    </div>
+                    <div style={{textAlign:"right",marginRight:10}}>
+                      <div style={{fontSize:12,fontWeight:700,color:G.mid}}>{item.totalKg}kg</div>
+                      <div style={{fontSize:10,color:"#aaa"}}>{item.kgEach}kg/박스</div>
+                    </div>
+                    <button onClick={function(){removeItem(item.id);}} style={{background:"none",border:"none",color:"#f87171",fontSize:18,cursor:"pointer",padding:"0 4px"}}>×</button>
+                  </div>
+                );
+              })}
+              <div style={{display:"flex",justifyContent:"space-between",padding:"10px 14px",borderRadius:10,background:"#0d2b1a",color:"#fff",marginTop:6}}>
+                <span style={{fontWeight:700,fontSize:13}}>총 {items.length}개 품목</span>
+                <span style={{fontWeight:900,fontSize:15}}>합계 {totalKg}kg</span>
+              </div>
+            </div>
+        }
+      </div>
+
+      <button onClick={calculate} disabled={!canCalc} style={{width:"100%",background:canCalc?"linear-gradient(135deg,#0d2b1a,#40916c)":"#e5e7eb",color:canCalc?"#fff":"#aaa",border:"none",borderRadius:14,padding:"15px 0",fontSize:15,fontWeight:900,cursor:canCalc?"pointer":"not-allowed",marginBottom:14}}>
+        🧮 전체 시장 배송비 비교
+      </button>
+
+      {result && (
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontWeight:800,fontSize:14,color:G.mid}}>📊 시장별 배송비 비교</div>
+            <div style={{fontSize:11,color:"#888"}}>→ {result.toSido} · {totalKg}kg</div>
+          </div>
+          {!result.isRealDist && <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"8px 12px",fontSize:11,color:"#92400e",marginBottom:10}}>* 실측 거리 미등록 주소 — 권역 기반 추정거리로 계산됨</div>}
+
+          {result.markets.map(function(m, idx) {
+            var isBest = idx===0;
+            var boxes = items.reduce(function(s,i){ return s+i.qty; }, 0);
+            var recommend = m.cheapParcel <= m.freight ? "parcel" : "freight";
+            return (
+              <div key={m.market.id} style={{background:"#fff",borderRadius:14,padding:"14px",border:"2px solid "+(isBest?"#4ade80":"#f3f4f6"),marginBottom:8,position:"relative"}}>
+                {isBest && <div style={{position:"absolute",top:-1,right:12,background:"#16a34a",color:"#fff",fontSize:10,fontWeight:700,padding:"2px 9px",borderRadius:"0 0 8px 8px"}}>택배 최저</div>}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a"}}>{m.market.name}</div>
+                  <div style={{fontSize:11,color:"#888",background:"#f3f4f6",borderRadius:20,padding:"2px 9px"}}>🚗 약 {m.km}km</div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <div style={{background:recommend==="parcel"?"#f0fdf4":"#f9fafb",borderRadius:10,padding:"10px",textAlign:"center",border:"1.5px solid "+(recommend==="parcel"?"#86efac":"#f3f4f6")}}>
+                    <div style={{fontSize:10,color:"#888",marginBottom:3}}>📦 택배 {recommend==="parcel"&&<span style={{color:"#16a34a",fontWeight:700}}>추천</span>}</div>
+                    <div style={{fontWeight:900,fontSize:15,color:recommend==="parcel"?G.mid:"#555"}}>{m.cheapParcel.toLocaleString()}원</div>
+                    <div style={{fontSize:9,color:"#aaa",marginTop:2}}>{boxes}박스 · 최저가 기준</div>
+                  </div>
+                  <div style={{background:recommend==="freight"?"#f0f4ff":"#f9fafb",borderRadius:10,padding:"10px",textAlign:"center",border:"1.5px solid "+(recommend==="freight"?"#a5b4fc":"#f3f4f6")}}>
+                    <div style={{fontSize:10,color:"#888",marginBottom:3}}>🚛 화물 {recommend==="freight"&&<span style={{color:"#6366f1",fontWeight:700}}>추천</span>}</div>
+                    <div style={{fontWeight:900,fontSize:15,color:recommend==="freight"?"#6366f1":"#555"}}>{m.freight.toLocaleString()}원~</div>
+                    <div style={{fontSize:9,color:"#aaa",marginTop:2}}>1톤 트럭 기준</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          <div style={{background:"#f1f5f9",borderRadius:12,padding:"10px 12px",fontSize:11,color:"#64748b",lineHeight:1.7,marginTop:4}}>
+            ⚠️ 실제 운임은 운송사·차량 크기·성수기에 따라 다를 수 있습니다.
+          </div>
+
+          <div style={{background:"#fff",borderRadius:16,padding:16,border:"1px solid #e5e7eb",marginTop:12}}>
+            <div style={{fontWeight:800,fontSize:13,color:G.mid,marginBottom:12}}>📞 배송 문의하기</div>
+            <div style={{display:"flex",gap:6,marginBottom:14}}>
+              {[["parcel","📦 택배사"],["freight","🚛 화물운송"]].map(function(t){
+                var on = contactTab===t[0];
+                return <button key={t[0]} onClick={function(){setContactTab(t[0]);}} style={{flex:1,padding:"9px 0",background:on?"linear-gradient(135deg,#0d2b1a,#40916c)":"#f3f4f6",color:on?"#fff":"#555",border:"none",borderRadius:10,fontSize:12,fontWeight:on?700:400,cursor:"pointer"}}>{t[1]}</button>;
+              })}
+            </div>
+            {contactTab==="parcel" && (
+              <div>
+                <div style={{fontSize:11,color:"#888",marginBottom:10}}>택배사에 직접 집화 신청하거나 홈페이지에서 접수하세요.</div>
+                {PARCEL_CONTACTS.map(function(c){
+                  return (
+                    <div key={c.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 12px",borderRadius:12,background:"#f8fffe",border:"1px solid #e5e7eb",marginBottom:8}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:2}}>{c.name}</div>
+                        <div style={{fontSize:11,color:"#888"}}>{c.desc}</div>
+                      </div>
+                      <div style={{display:"flex",gap:6,flexShrink:0}}>
+                        <a href={"tel:"+c.phone} style={{display:"flex",alignItems:"center",gap:4,background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:20,padding:"6px 12px",textDecoration:"none",color:G.mid,fontSize:12,fontWeight:700}}>📱 {c.phone}</a>
+                        <a href={c.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",background:G.mid,borderRadius:20,padding:"6px 12px",textDecoration:"none",color:"#fff",fontSize:12,fontWeight:700}}>🌐</a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {contactTab==="freight" && (
+              <div>
+                <div style={{fontSize:11,color:"#888",marginBottom:10}}>화물 중개 플랫폼에 의뢰하거나 앱에서 실시간 차량을 배정받으세요.</div>
+                {FREIGHT_CONTACTS.map(function(c){
+                  return (
+                    <div key={c.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 12px",borderRadius:12,background:"#f8faff",border:"1px solid #e5e7eb",marginBottom:8}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:700,fontSize:13,color:"#1a1a1a",marginBottom:2}}>{c.name}</div>
+                        <div style={{fontSize:11,color:"#888"}}>{c.desc}</div>
+                      </div>
+                      <div style={{display:"flex",gap:6,flexShrink:0}}>
+                        <a href={"tel:"+c.phone} style={{display:"flex",alignItems:"center",gap:4,background:"#f0f4ff",border:"1.5px solid #a5b4fc",borderRadius:20,padding:"6px 12px",textDecoration:"none",color:"#6366f1",fontSize:12,fontWeight:700}}>📱 {c.phone}</a>
+                        <a href={c.url} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",background:"#6366f1",borderRadius:20,padding:"6px 12px",textDecoration:"none",color:"#fff",fontSize:12,fontWeight:700}}>🌐</a>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{background:"#fefce8",border:"1px solid #fde68a",borderRadius:10,padding:"10px 12px",marginTop:4,fontSize:11,color:"#92400e",lineHeight:1.8}}>
+                  💡 앱스토어·플레이스토어에서 각 업체명 검색 시 실시간 차량 배정 앱을 이용할 수 있습니다.
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 메인 앱 ──
 function App() {
   var t1 = useState("search"); var tab = t1[0]; var setTab = t1[1];
@@ -2738,7 +3064,7 @@ function App() {
             </div>
           </div>
           <div style={{display:"flex",gap:2,paddingBottom:0}}>
-            {[["search","🔍 경락"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
+            {[["search","🔍 경락"],["ship","🚚 배송"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
               var active = tab===t[0];
               return <button key={t[0]} onClick={function(){setTab(t[0]); if(t[0]==="mypage"&&!loginUser) setShowLogin(true);}} style={{flex:1,padding:"10px 0",border:"none",background:active?"rgba(255,255,255,0.15)":"transparent",color:active?"#fff":"rgba(255,255,255,0.55)",fontWeight:active?800:400,fontSize:10,cursor:"pointer",borderBottom:active?"2px solid #52b788":"2px solid transparent",borderRadius:"6px 6px 0 0"}}>
                 {t[1]}
@@ -2877,6 +3203,7 @@ function App() {
           </div>}
 
         </div>}
+        {tab==="ship" && <ShippingCalcTab loginUser={loginUser} auctionData={data} />}
         {tab==="map" && <MarketMap
           data={data}
           selected={mapRegion}
