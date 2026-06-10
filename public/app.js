@@ -966,11 +966,29 @@ function RecordCard(props) {
                 if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
                 setBuyQty(1);
                 setPayModal({no:"corp", tradeRow:null, itemKey:"at_"+r.id, maxQty:r.qty||1, isAT:true});
-              }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+              }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+              <button onClick={function(){
+                if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
+                // AT 카드 장바구니 담기
+                try {
+                  var uid = loginUser.id;
+                  var cart = JSON.parse(localStorage.getItem("agro_cart_"+uid)||"[]");
+                  var itemKey = "at_"+r.id;
+                  if(cart.find(function(c){return c.itemKey===itemKey;})){
+                    alert("이미 장바구니에 담긴 상품입니다."); return;
+                  }
+                  var price = r.price||0;
+                  var qty = r.qty||1;
+                  var deposit = Math.max(5000, Math.round(price*qty*0.1/1000)*1000);
+                  cart.push({itemKey:itemKey, no:"corp", dealerName:r.corp||"법인", dealerPhone:r.market.phone||"", itemName:r.itemName, grade:r.grade||"", origin:r.origin||"", weight:r.unit||"", qty:qty, price:price, deposit:deposit, total:price*qty, addedAt:new Date().toLocaleDateString("ko-KR"), market:r.market.name});
+                  localStorage.setItem("agro_cart_"+uid, JSON.stringify(cart));
+                  alert("🧺 장바구니에 담겼습니다!\n마이페이지에서 확인하세요.");
+                } catch(e){ alert("오류가 발생했습니다."); }
+              }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
               <button onClick={function(){
                 window._chatDealer={no:"corp", tradeRow:null, chatType:"inquiry", isAT:true, corpName:r.corp, marketPhone:r.market.phone};
                 setShowChat(true);
-              }} style={{background:"#f0fdf4",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:9,padding:"6px 13px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
+              }} style={{background:"#f0fdf4",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
             </>}
           </div>
         </div>
@@ -2572,7 +2590,16 @@ function App() {
                   <span style={{background:"rgba(239,68,68,0.2)",color:"#fca5a5",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px"}}>🔴 연결 오류 · 재시도 중</span>
                 </div>}
               </div>
-              <div style={{marginTop:4}}>
+              <div style={{marginTop:4,display:"flex",gap:6}}>
+                {loginUser && loginUser.role==="buyer" && (function(){
+                  var cartCount = 0;
+                  try { cartCount = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]").length; } catch(e){}
+                  return (
+                    <button onClick={function(){setTab("mypage");}} style={{background:"rgba(255,165,0,0.2)",border:"1px solid rgba(255,165,0,0.4)",color:"#fed7aa",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer",position:"relative"}}>
+                      🧺 장바구니 {cartCount > 0 ? <span style={{background:"#c2410c",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:10,fontWeight:900}}>{cartCount}</span> : ""}
+                    </button>
+                  );
+                })()}
                 {loginUser
                   ? <button onClick={function(){setTab("mypage");}} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
                       {loginUser.role==="dealer"?"🏪":"🛒"} 마이페이지
