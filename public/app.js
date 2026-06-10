@@ -678,9 +678,24 @@ function RecordCard(props) {
     matchedTrades = tradeData.filter(function(t){
       var t품목 = (t["품목명"]||t["품목"]||"").trim();
       var tDate = (t["경매일자"]||t["매매일자"]||"").replace(/\./g,"-").trim();
-      // 날짜: 시트 최신 날짜 기준으로 매칭 (가상데이터 날짜 무시)
       var dateOk = !latestTradeDate || !tDate || tDate === latestTradeDate;
-      return dateOk && itemMatch(t품목, r.itemName, r.fullName);
+      if(!dateOk || !itemMatch(t품목, r.itemName, r.fullName)) return false;
+
+      // 중도매인 비공개 거래건 필터링
+      var no = String(t["낙찰 중도매인"]||"").trim();
+      var m = no.match(/^(\d+)/);
+      var noKey = m ? String(parseInt(m[1])) : no;
+      var itemName = t품목;
+      var tradeKey = itemName+"_"+(t["경매시간"]||"");
+      for(var acc in ACCOUNTS) {
+        if(ACCOUNTS[acc].role==="dealer" && String(ACCOUNTS[acc].dealerNo)===noKey) {
+          try {
+            var ds = JSON.parse(localStorage.getItem("agro_dealer_"+acc)||"{}");
+            if(ds.hiddenTrades && ds.hiddenTrades[tradeKey]) return false;
+          } catch(e){}
+        }
+      }
+      return true;
     }).slice(0, 30);
   }
   var chatTradeRow = matchedTrades.length > 0 ? matchedTrades[0] : null;
