@@ -520,8 +520,6 @@ function ChatModal(props) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:9999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
       <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:600,maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
-
-        {}
         <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:"20px 20px 0 0",padding:"14px 16px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
@@ -540,8 +538,6 @@ function ChatModal(props) {
             <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:30,height:30,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
           </div>
         </div>
-
-        {}
         <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:10,background:"#f8fffe"}}>
           {messages.map(function(m,i){
             var isUser = m.role==="user";
@@ -566,15 +562,11 @@ function ChatModal(props) {
           )}
           <div ref={bottomRef}/>
         </div>
-
-        {}
         <div style={{padding:"8px 16px",background:"#f0fdf4",display:"flex",gap:6,overflowX:"auto"}}>
           {["가격 협의 가능한가요?","품질 상태는 어떤가요?","최소 구매 수량은?","언제 배송 가능한가요?"].map(function(q){return(
             <button key={q} onClick={function(){setInput(q);}} style={{background:"#fff",border:"1px solid #bbf7d0",borderRadius:20,padding:"5px 12px",fontSize:11,color:G.mid,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{q}</button>
           );})}
         </div>
-
-        {}
         <div style={{padding:"10px 16px 20px",background:"#fff",display:"flex",gap:8,borderTop:"1px solid #e5e7eb"}}>
           <input
             value={input}
@@ -693,7 +685,6 @@ function RecordCard(props) {
               <div style={{fontSize:11,color:"#888",marginTop:1}}>
                 🏛️ {r.market.name} · {r.market.region}
               </div>
-              {}
               {r.rating && (
                 <div style={{display:"flex",alignItems:"center",gap:4,marginTop:3}}>
                   <StarRating rating={r.rating} size={11}/>
@@ -719,8 +710,6 @@ function RecordCard(props) {
           {r.corp && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"3px 10px"}}>🏢 {r.corp}</span>}
           {r.grade && <span style={{background: r.grade==="특"?"#fef9c3": r.grade==="상"?"#dbeafe":"#f3f4f6", color: r.grade==="특"?"#854d0e": r.grade==="상"?"#1e40af":"#555", fontSize:10,fontWeight:700,borderRadius:20,padding:"3px 10px"}}>🏅 {r.grade}등급</span>}
         </div>
-
-        {}
         {(r.bidder || r.shipperName) && (
           <div style={{background:"#f8fffe",borderRadius:10,padding:"9px 12px",marginBottom:8,border:"1px solid #e0f7ec"}}>
             <div style={{fontSize:10,fontWeight:700,color:G.mid,marginBottom:6}}>📋 거래 상세정보</div>
@@ -747,8 +736,6 @@ function RecordCard(props) {
             </div>
           </div>
         )}
-
-        {}
         {r.reviews && r.reviews.length > 0 && (
           <div style={{marginBottom:8}}>
             <button onClick={function(){setShowReviews(!showReviews);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:G.light,fontWeight:600,cursor:"pointer"}}>
@@ -768,8 +755,6 @@ function RecordCard(props) {
             )}
           </div>
         )}
-
-        {}
         {r.market.id === 8 && matchedTrades.length > 0 && (
           <div style={{marginBottom:8}}>
             <button onClick={function(){setShowTrade(!showTrade);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:"#2563eb",fontWeight:700,cursor:"pointer"}}>
@@ -803,7 +788,6 @@ function RecordCard(props) {
 
                   return (
                     <div key={i} style={{background:"#f8faff",borderRadius:12,border:"1px solid #bfdbfe",padding:"11px 13px"}}>
-                      {}
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
                           <div style={{background:"#1e3a8a",borderRadius:8,padding:"3px 8px"}}>
@@ -814,8 +798,6 @@ function RecordCard(props) {
                         </div>
                         <span style={{color:"#94a3b8",fontSize:10}}>{auctionTime}</span>
                       </div>
-
-                      {}
                       <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
                         {origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📍 {origin}</span>}
                         {grade && <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:20,padding:"2px 9px",fontWeight:700,fontSize:10}}>{grade}등급</span>}
@@ -823,8 +805,6 @@ function RecordCard(props) {
                         {weight && <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📦 {weight}kg/박스</span>}
                         {qty && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"2px 9px"}}>{qty}개</span>}
                       </div>
-
-                      {}
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <div>
                           <span style={{fontWeight:900,fontSize:16,color:G.mid}}>{price ? price.toLocaleString()+"원" : "-"}</span>
@@ -902,7 +882,6 @@ function RecordCard(props) {
                         <span style={{fontWeight:500,color:"#333"}}>{row[1]}</span>
                       </div>
                     );})}
-                    {}
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #e5e7eb"}}>
                       <span style={{color:"#888",fontSize:13}}>구매 수량</span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -952,8 +931,6 @@ function RecordCard(props) {
                         </div>
                       );
                     })}
-
-                    {}
                     {payMethod==="card" && (
                       <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb"}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:10}}>카드 정보 입력</div>
@@ -986,8 +963,6 @@ function RecordCard(props) {
                           style={{width:"100%",border:"1px solid #d1d5db",borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                       </div>
                     )}
-
-                    {}
                     {payMethod==="kakao" && (
                       <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb",textAlign:"center"}}>
                         <div style={{background:"#FEE500",borderRadius:12,padding:"16px",marginBottom:12,display:"inline-block",width:"100%",boxSizing:"border-box"}}>
@@ -1006,8 +981,6 @@ function RecordCard(props) {
                         </div>
                       </div>
                     )}
-
-                    {}
                     {payMethod==="transfer" && (
                       <div style={{marginTop:10,background:"#fff",borderRadius:10,padding:"14px",border:"1px solid #e5e7eb"}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:10}}>입금 계좌 안내</div>
@@ -1210,7 +1183,6 @@ function LoginModal(props) {
           <button onClick={onClose} style={{position:"absolute",top:14,right:14,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:28,height:28,cursor:"pointer",fontSize:14}}>✕</button>
         </div>
         <div style={{padding:"20px"}}>
-          {}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
             {[["buyer","🛒 구매자"],["dealer","🏪 중도매인"]].map(function(r){return(
               <button key={r[0]} onClick={function(){setRole(r[0]);setId("");setPw("");setErr("");}} style={{padding:"10px",border:"2px solid "+(role===r[0]?G.mid:"#e5e7eb"),borderRadius:12,background:role===r[0]?"#f0fdf4":"#fff",color:role===r[0]?G.mid:"#888",fontWeight:role===r[0]?800:400,fontSize:13,cursor:"pointer"}}>
@@ -1299,8 +1271,6 @@ function BuyerMyPage(props) {
 
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>📋 내 정보</div>
-
-        {}
         <div style={{marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>사업자등록번호</div>
           <div style={{display:"flex",gap:6}}>
@@ -1350,8 +1320,6 @@ function BuyerMyPage(props) {
               style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"10px 12px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
           </div>
         );})}
-
-        {}
         <div style={{marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>사업장 주소 <span style={{color:G.light,fontWeight:400}}>(배송비 계산에 사용)</span></div>
           <input value={bizAddr} onChange={function(e){setBizAddr(e.target.value);}} placeholder="서울 송파구 올림픽로 300"
@@ -1368,8 +1336,6 @@ function BuyerMyPage(props) {
           {isSaved ? "✅ 저장되었습니다" : "저장하기"}
         </button>
       </div>
-
-      {}
       {(function(){
         var purchases = [];
         try { var raw = localStorage.getItem("agro_purchase_"+user.id); purchases = raw ? JSON.parse(raw) : []; } catch(e){}
@@ -1384,8 +1350,6 @@ function BuyerMyPage(props) {
               <button onClick={function(){setShowCharge(true);setChargeDone(false);setChargeAmt("");}}
                 style={{background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ 충전하기</button>
             </div>
-
-            {}
             <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:12,padding:"18px",color:"#fff",marginBottom:12}}>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4}}>사용 가능 잔액</div>
               <div style={{fontSize:32,fontWeight:900,color:"#4ade80"}}>{balance.toLocaleString()}<span style={{fontSize:16,fontWeight:500}}>원</span></div>
@@ -1395,8 +1359,6 @@ function BuyerMyPage(props) {
                 <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>수령 시 잔금</div><div style={{fontSize:13,fontWeight:700,color:"#fbbf24"}}>{totalRemain.toLocaleString()}원</div></div>
               </div>
             </div>
-
-            {}
             {purchases.length > 0 ? (
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>예약 내역</div>
@@ -1429,8 +1391,6 @@ function BuyerMyPage(props) {
             <div style={{fontSize:11,color:"#888",lineHeight:1.7,marginTop:8,padding:"10px 12px",background:"#f8fffe",borderRadius:8}}>
               💡 예치금으로 보증금 결제 시 즉시 차감됩니다. 수령 시 잔금은 중도매인에게 직접 결제하세요.
             </div>
-
-            {}
             {showCharge && (
               <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={function(e){if(e.target===e.currentTarget){setShowCharge(false);setChargeDone(false);}}}>
                 <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:380,overflow:"hidden",maxHeight:"90vh",overflowY:"auto"}}>
@@ -1441,7 +1401,6 @@ function BuyerMyPage(props) {
                   </div>
                   <div style={{padding:"16px"}}>
                     {!chargeDone ? <>
-                      {}
                       <div style={{marginBottom:12}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>충전 금액 선택</div>
                         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:8}}>
@@ -1457,8 +1416,6 @@ function BuyerMyPage(props) {
                           style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"10px 12px",fontSize:14,fontWeight:700,outline:"none",boxSizing:"border-box",textAlign:"right"}}/>
                         {chargeAmt && parseInt(chargeAmt)>0 && <div style={{textAlign:"right",fontSize:12,color:G.mid,fontWeight:700,marginTop:4}}>{parseInt(chargeAmt).toLocaleString()}원 충전</div>}
                       </div>
-
-                      {}
                       <div style={{marginBottom:12}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단</div>
                         {[["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
@@ -1650,8 +1607,6 @@ function DealerMyPage(props) {
           })}
         </div>
       )}
-
-      {}
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:4}}>📞 연락처 공개 설정</div>
         <div style={{fontSize:11,color:"#888",marginBottom:14}}>구매자가 경락 카드에서 내 전화번호를 볼 수 있도록 허용합니다</div>
@@ -1677,8 +1632,6 @@ function DealerMyPage(props) {
           );
         })()}
       </div>
-
-      {}
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>🔔 알림음 설정</div>
         {[
@@ -1702,8 +1655,6 @@ function DealerMyPage(props) {
         })}
         <div style={{fontSize:10,color:"#aaa",marginTop:4}}>* 저장하기 버튼을 눌러야 설정이 유지됩니다</div>
       </div>
-
-      {}
       <button onClick={saveDealer} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s",marginBottom:10}}>
         {isSaved ? "✅ 저장되었습니다" : "저장하기"}
       </button>
@@ -2080,8 +2031,6 @@ function App() {
 
   return (
     <div style={{minHeight:"100vh",background:G.bg,fontFamily:"'Noto Sans KR','Apple SD Gothic Neo',sans-serif"}}>
-
-      {}
       <div style={{background:"linear-gradient(160deg,#0d2b1a 0%,#1b4332 55%,#2d6a4f 100%)"}}>
         <div style={{maxWidth:600,margin:"0 auto",padding:"0 16px"}}>
           <div style={{padding:"16px 0 12px"}}>
@@ -2103,7 +2052,6 @@ function App() {
                   <span style={{background:"rgba(239,68,68,0.2)",color:"#fca5a5",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px"}}>🔴 연결 오류 · 재시도 중</span>
                 </div>}
               </div>
-              {}
               <div style={{marginTop:4}}>
                 {loginUser
                   ? <button onClick={function(){setTab("mypage");}} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
@@ -2116,8 +2064,6 @@ function App() {
               </div>
             </div>
           </div>
-
-          {}
           <div style={{display:"flex",gap:2,paddingBottom:0}}>
             {[["search","🔍 경락"],["guide","📋 안내"],["mypage","👤 MY"]].map(function(t){
               var active = tab===t[0];
@@ -2128,14 +2074,8 @@ function App() {
           </div>
         </div>
       </div>
-
-      {}
       <div style={{maxWidth:600,margin:"0 auto",padding:"16px"}}>
-
-        {}
         {tab==="search" && <div>
-
-          {}
           {(status==="ok"||status==="partial"||data.length>0) && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
             {[
               ["📊","오늘 경락",stats.total+"건"],
@@ -2149,12 +2089,8 @@ function App() {
               </div>
             );})}
           </div>}
-
-          {}
           <div style={{background:"#fff",borderRadius:16,padding:"16px",marginBottom:14,border:"1px solid #e5e7eb",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
             <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:12}}>🔍 경락가 검색</div>
-
-            {}
             <div style={{marginBottom:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목</div>
               <select value={filterItem} onChange={function(e){setFilterItem(e.target.value); setFilterSubItem(""); setFilterGrade(""); setFilterUnit("");}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
@@ -2162,8 +2098,6 @@ function App() {
                 {itemList.map(function(name){return <option key={name} value={name}>{getEmoji(name)+" "+name}</option>;})}
               </select>
             </div>
-
-            {}
             {filterItem && subItemList.length > 1 && (
               <div style={{marginBottom:8}}>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목 상세</div>
@@ -2173,8 +2107,6 @@ function App() {
                 </select>
               </div>
             )}
-
-            {}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>등급</div>
@@ -2191,8 +2123,6 @@ function App() {
                 </select>
               </div>
             </div>
-
-            {}
             <div style={{marginBottom:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>도매시장</div>
               <select value={filterMarket} onChange={function(e){setFilterMarket(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
@@ -2215,8 +2145,6 @@ function App() {
               🔍 전국 경락가 검색
             </button>
           </div>
-
-          {}
           {searched && <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontWeight:800,fontSize:14,color:"#0d1f15"}}>
@@ -2232,8 +2160,6 @@ function App() {
             </div>
 
             </div>
-
-            {}
             {sortBy==="smart" && (function(){
               var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
               return (
@@ -2279,8 +2205,6 @@ function App() {
           </div>}
 
         </div>}
-
-        {}
         {tab==="map" && <MarketMap
           data={data}
           selected={mapRegion}
@@ -2289,8 +2213,6 @@ function App() {
             if(r){ setFilterRegion(r); setTab("search"); setSearched(true); }
           }}
         />}
-
-        {}
         {tab==="guide" && <div>
           <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",borderRadius:20,padding:"20px",marginBottom:14,color:"#fff"}}>
             <div style={{fontWeight:900,fontSize:17,marginBottom:8}}>🌿 농작교란?</div>
@@ -2315,8 +2237,6 @@ function App() {
               </div>
             </div>
           );})}
-
-          {}
           <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:14,padding:"14px 16px",marginTop:4}}>
             <div style={{fontWeight:700,fontSize:13,color:G.mid,marginBottom:6}}>ℹ️ 데이터 출처</div>
             <div style={{fontSize:12,color:"#555",lineHeight:1.8}}>
@@ -2326,8 +2246,6 @@ function App() {
             </div>
           </div>
         </div>}
-
-        {}
         {tab==="mypage" && (
           loginUser
             ? loginUser.role==="buyer"
@@ -2341,8 +2259,6 @@ function App() {
         )}
 
       </div>
-
-      {}
       {showLogin && <LoginModal
         onLogin={function(user){setLoginUser(user);setShowLogin(false);setTab("mypage");}}
         onClose={function(){setShowLogin(false);}}
