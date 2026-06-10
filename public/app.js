@@ -299,13 +299,31 @@ function makeMockData() {
 
 // CSV 파싱 (노은시장 실제 데이터)
 function parseCSV(csvText) {
-  // 경락 시트 구조: 경매일시 / 도매시장 / 법인 / 품목 / 품종 / 산지 / 수량 / 단위 / 경락가
+  // BOM 제거 + 경락 시트 구조: 경매일시 / 도매시장 / 법인 / 품목 / 품종 / 산지 / 수량 / 단위 / 경락가
+  csvText = csvText.replace(/^\uFEFF/, "").replace(/^\xEF\xBB\xBF/, "");
   var lines = csvText.trim().split("\n");
   if(lines.length < 2) return [];
 
-  var rawHeaders = lines[0].split(",").map(function(h){ return h.trim().replace(/"/g,""); });
+  var rawHeaders = lines[0].split(",").map(function(h){
+    return h.trim().replace(/"/g,"").replace(/\uFEFF/g,"").replace(/^\s+|\s+$/g,"");
+  });
+
+  // 헤더 매핑 실패 대비: 인덱스 직접 폴백
+  // 경락 시트 고정 순서: 0=경매일시, 1=도매시장, 2=법인, 3=품목, 4=품종, 5=산지, 6=수량, 7=단위, 8=경락가
+  var IDX = {
+    "경매일시": rawHeaders.indexOf("경매일시") >= 0 ? rawHeaders.indexOf("경매일시") : 0,
+    "도매시장": rawHeaders.indexOf("도매시장") >= 0 ? rawHeaders.indexOf("도매시장") : 1,
+    "법인":     rawHeaders.indexOf("법인")     >= 0 ? rawHeaders.indexOf("법인")     : 2,
+    "품목":     rawHeaders.indexOf("품목")     >= 0 ? rawHeaders.indexOf("품목")     : 3,
+    "품종":     rawHeaders.indexOf("품종")     >= 0 ? rawHeaders.indexOf("품종")     : 4,
+    "산지":     rawHeaders.indexOf("산지")     >= 0 ? rawHeaders.indexOf("산지")     : 5,
+    "수량":     rawHeaders.indexOf("수량")     >= 0 ? rawHeaders.indexOf("수량")     : 6,
+    "단위":     rawHeaders.indexOf("단위")     >= 0 ? rawHeaders.indexOf("단위")     : 7,
+    "경락가":   rawHeaders.indexOf("경락가")   >= 0 ? rawHeaders.indexOf("경락가")   : 8,
+  };
+
   function col(row, name) {
-    var idx = rawHeaders.indexOf(name);
+    var idx = IDX[name];
     return idx >= 0 ? (row[idx]||"").trim() : "";
   }
 
