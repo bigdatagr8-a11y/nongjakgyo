@@ -629,13 +629,40 @@ function RecordCard(props) {
   // 노은시장 카드일 때 품목명으로 거래실적 매칭
   var matchedTrades = [];
   if(r.market.id === 8 && tradeData.length > 0) {
-    // 경락 날짜와 거래실적 날짜가 정확히 일치하는 것만 표시
+    // 품목명 유사 매칭 헬퍼 (완숙토마토↔토마토, 대추방울↔방울토마토 등)
+    function itemMatch(t품목, cardItem, cardFull) {
+      if(!t품목) return false;
+      // 소계/합계 제외
+      if(t품목.includes("소계") || t품목.includes("합계")) return false;
+      // 정확히 포함 관계
+      if(t품목.includes(cardItem) || cardItem.includes(t품목)) return true;
+      if(cardFull && (t품목.includes(cardFull) || cardFull.includes(t품목))) return true;
+      // 토마토 계열: 완숙토마토, 방울토마토, 대추방울 등
+      var 토마토류 = ["토마토","완숙토마토","방울토마토","대추방울","대추토마토","스테비아"];
+      if(토마토류.some(function(k){return cardItem.includes("토마토")||cardItem.includes("방울");}) &&
+         토마토류.some(function(k){return t품목.includes(k);})) return true;
+      // 살구 계열
+      if(cardItem.includes("살구") && t품목.includes("살구")) return true;
+      // 복숭아 계열
+      if(cardItem.includes("복숭아") && t품목.includes("복숭아")) return true;
+      // 블루베리
+      if(cardItem.includes("블루베리") && t품목.includes("블루베리")) return true;
+      return false;
+    }
+
+    // 시트에서 가장 최신 날짜 추출 (날짜 무관하게 최신 데이터 표시)
+    var latestTradeDate = tradeData.reduce(function(latest, t){
+      var d = (t["경매일자"]||t["매매일자"]||"").replace(/\./g,"-").trim();
+      return d > latest ? d : latest;
+    }, "");
+
     matchedTrades = tradeData.filter(function(t){
       var t품목 = (t["품목명"]||t["품목"]||"").trim();
       var tDate = (t["경매일자"]||t["매매일자"]||"").replace(/\./g,"-").trim();
-      var dateOk = !r.date || !tDate || tDate === r.date;
-      return dateOk && t품목 && (t품목.includes(r.itemName) || r.itemName.includes(t품목) || r.fullName.includes(t품목));
-    }).slice(0, 20);
+      // 날짜: 시트 최신 날짜 기준으로 매칭 (가상데이터 날짜 무시)
+      var dateOk = !latestTradeDate || !tDate || tDate === latestTradeDate;
+      return dateOk && itemMatch(t품목, r.itemName, r.fullName);
+    }).slice(0, 30);
   }
   var chatTradeRow = matchedTrades.length > 0 ? matchedTrades[0] : null;
 
