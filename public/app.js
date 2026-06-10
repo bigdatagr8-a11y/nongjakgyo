@@ -1532,6 +1532,11 @@ function BuyerMyPage(props) {
   var bals = useState(getBalance()); var balance = bals[0]; var setBalanceState = bals[1];
   function updateBalance(v){ setBalance(v); setBalanceState(v); }
 
+  // 예약내역 state (취소 후 재렌더링용)
+  var plist = useState(function(){ try { var r=localStorage.getItem("agro_purchase_"+user.id); return r?JSON.parse(r):[]; } catch(e){ return []; } });
+  var purchaseList = plist[0]; var setPurchaseList = plist[1];
+  function reloadPurchases(){ try { var r=localStorage.getItem("agro_purchase_"+user.id); setPurchaseList(r?JSON.parse(r):[]); } catch(e){ setPurchaseList([]); } }
+
   // 충전 모달
   var chs  = useState(false); var showCharge  = chs[0];  var setShowCharge  = chs[1];
   var camt = useState("");    var chargeAmt   = camt[0]; var setChargeAmt   = camt[1];
@@ -1670,6 +1675,7 @@ function BuyerMyPage(props) {
               existing.push({key:c.itemKey, itemName:c.itemName, grade:c.grade, origin:c.origin, price:c.price, qty:c.qty, deposit:c.deposit, total:c.total, payMethod:cartPayMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:c.dealerName, cardId:c.cardId, purchasedQty:c.qty});
             });
             localStorage.setItem("agro_purchase_"+user.id, JSON.stringify(existing));
+            setPurchaseList(existing);
           } catch(e){}
           // 장바구니 비우기
           setCartItems([]);
@@ -1743,8 +1749,7 @@ function BuyerMyPage(props) {
 
       {/* 보증금(예치금) 현황 */}
       {(function(){
-        var purchases = [];
-        try { var raw = localStorage.getItem("agro_purchase_"+user.id); purchases = raw ? JSON.parse(raw) : []; } catch(e){}
+        var purchases = purchaseList;
         var totalUsed   = purchases.reduce(function(s,p){return s+(p.deposit||0);},0);
         var totalRemain = purchases.reduce(function(s,p){return s+((p.total||0)-(p.deposit||0));},0);
         var payMethodLabel = {"card":"💳 카드","kakao":"🟡 카카오페이","transfer":"🏦 계좌이체"};
@@ -1792,7 +1797,7 @@ function BuyerMyPage(props) {
                       }
                     }
                     try { localStorage.setItem("agro_sold_cards", JSON.stringify(soldCards)); } catch(e){}
-                    window.location.reload();
+                    reloadPurchases();
                   }
                   return (
                     <div key={i} style={{background:"#f8fffe",borderRadius:10,padding:"12px",marginBottom:8,border:"1px solid #e0f7ec"}}>
@@ -2524,7 +2529,8 @@ function App() {
   var d7 = useState("idle"); var tradeStatus = d7[0]; var setTradeStatus = d7[1];
 
   var m1 = useState(""); var mapRegion = m1[0]; var setMapRegion = m1[1];
-  var l1 = useState(null); var loginUser = l1[0]; var setLoginUser = l1[1];
+  var l1 = useState(function(){ try { var s=localStorage.getItem("agro_login"); return s?JSON.parse(s):null; } catch(e){ return null; } }); var loginUser = l1[0]; var _setLoginUser = l1[1];
+  function setLoginUser(user){ _setLoginUser(user); try{ if(user){ localStorage.setItem("agro_login",JSON.stringify(user)); } else { localStorage.removeItem("agro_login"); } }catch(e){} }
   var l2 = useState(false); var showLogin = l2[0]; var setShowLogin = l2[1];
   var l3 = useState(false); var showCart = l3[0]; var setShowCart = l3[1];
   // 장바구니 모달 state (App 최상단에 있어야 React 규칙 준수)
