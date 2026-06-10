@@ -1970,60 +1970,61 @@ function DealerMyPage(props) {
 
       {/* 설정 탭 */}
       {dealerTab==="settings" && <div>
-        <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:4}}>📞 연락처 공개 설정</div>
-        <div style={{fontSize:11,color:"#888",marginBottom:14}}>구매자가 경락 카드에서 내 전화번호를 볼 수 있도록 허용합니다</div>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px",borderRadius:12,border:"2px solid "+(phonePublic?"#4ade80":"#e5e7eb"),background:phonePublic?"#f0fdf4":"#f9fafb",cursor:"pointer"}} onClick={function(){setPhonePublic(!phonePublic);}}>
-          <div>
-            <div style={{fontWeight:700,fontSize:13,color:phonePublic?"#065f46":"#555"}}>{phonePublic?"🟢 공개 중":"🔴 비공개"}</div>
-            <div style={{fontSize:11,color:"#888",marginTop:2}}>{phonePublic?"구매자가 내 연락처를 볼 수 있습니다":"연락처가 구매자에게 표시되지 않습니다"}</div>
-          </div>
-          <div style={{width:44,height:24,borderRadius:12,background:phonePublic?"#40916c":"#d1d5db",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <div style={{position:"absolute",top:2,left:phonePublic?22:2,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,0.2)",transition:"left 0.2s"}}></div>
-          </div>
-        </div>
-        {phonePublic && (function(){
-          var info = getDealerInfo(user.dealerNo);
-          return info.phone ? (
-            <div style={{marginTop:10,background:"#ecfdf5",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#065f46"}}>
-              📞 공개될 연락처: <b>{info.phone}</b> ({info.name})
+        <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+          <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:4}}>📞 연락처 공개 설정</div>
+          <div style={{fontSize:11,color:"#888",marginBottom:14}}>구매자가 경락 카드에서 내 전화번호를 볼 수 있도록 허용합니다</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px",borderRadius:12,border:"2px solid "+(phonePublic?"#4ade80":"#e5e7eb"),background:phonePublic?"#f0fdf4":"#f9fafb",cursor:"pointer"}} onClick={function(){setPhonePublic(!phonePublic);}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:13,color:phonePublic?"#065f46":"#555"}}>{phonePublic?"🟢 공개 중":"🔴 비공개"}</div>
+              <div style={{fontSize:11,color:"#888",marginTop:2}}>{phonePublic?"구매자가 내 연락처를 볼 수 있습니다":"연락처가 구매자에게 표시되지 않습니다"}</div>
             </div>
-          ) : (
-            <div style={{marginTop:10,background:"#fef9c3",borderRadius:10,padding:"10px 12px",fontSize:11,color:"#854d0e"}}>
-              ⚠️ 등록된 연락처가 없습니다. 관리자에게 문의하세요.
+            <div style={{width:44,height:24,borderRadius:12,background:phonePublic?"#40916c":"#d1d5db",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+              <div style={{position:"absolute",top:2,left:phonePublic?22:2,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,0.2)",transition:"left 0.2s"}}></div>
             </div>
-          );
-        })()}
-      </div>
-      <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
-        <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>🔔 알림음 설정</div>
-        {[
-          {num:"1", label:"알림음 1"},
-          {num:"2", label:"알림음 2"},
-          {num:"3", label:"알림음 3"},
-          {num:"4", label:"알림음 4"},
-        ].map(function(s){
-          var selected = alarmSound === s.num;
-          return (
-            <div key={s.num} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px",borderRadius:12,border:"2px solid "+(selected?"#40916c":"#e5e7eb"),background:selected?"#f0fdf4":"#fafafa",marginBottom:8,cursor:"pointer"}} onClick={function(){setAlarmSound(s.num);}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:20,height:20,borderRadius:"50%",border:"2px solid "+(selected?"#40916c":"#ccc"),background:selected?"#40916c":"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  {selected && <div style={{width:8,height:8,borderRadius:"50%",background:"#fff"}}></div>}
-                </div>
-                <span style={{fontSize:13,fontWeight:selected?700:400,color:selected?"#1b4332":"#555"}}>{s.label}</span>
+          </div>
+          {phonePublic && (function(){
+            var info = getDealerInfo(user.dealerNo);
+            return info.phone ? (
+              <div style={{marginTop:10,background:"#ecfdf5",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#065f46"}}>
+                📞 공개될 연락처: <b>{info.phone}</b> ({info.name})
               </div>
-              <button onClick={function(e){e.stopPropagation();playPreview(s.num);}} style={{background:"#e8f5e9",color:"#2d6a4f",border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>▶ 미리듣기</button>
-            </div>
-          );
-        })}
-        <div style={{fontSize:10,color:"#aaa",marginTop:4}}>* 저장하기 버튼을 눌러야 설정이 유지됩니다</div>
-      </div>
-      <button onClick={saveDealer} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s",marginBottom:10}}>
-        {isSaved ? "✅ 저장되었습니다" : "저장하기"}
-      </button>
-      <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:8}}>로그아웃</button>
+            ) : (
+              <div style={{marginTop:10,background:"#fef9c3",borderRadius:10,padding:"10px 12px",fontSize:11,color:"#854d0e"}}>
+                ⚠️ 등록된 연락처가 없습니다. 관리자에게 문의하세요.
+              </div>
+            );
+          })()}
+        </div>
+        <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+          <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>🔔 알림음 설정</div>
+          {[
+            {num:"1", label:"알림음 1"},
+            {num:"2", label:"알림음 2"},
+            {num:"3", label:"알림음 3"},
+            {num:"4", label:"알림음 4"},
+          ].map(function(s){
+            var selected = alarmSound === s.num;
+            return (
+              <div key={s.num} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px",borderRadius:12,border:"2px solid "+(selected?"#40916c":"#e5e7eb"),background:selected?"#f0fdf4":"#fafafa",marginBottom:8,cursor:"pointer"}} onClick={function(){setAlarmSound(s.num);}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:20,height:20,borderRadius:"50%",border:"2px solid "+(selected?"#40916c":"#ccc"),background:selected?"#40916c":"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {selected && <div style={{width:8,height:8,borderRadius:"50%",background:"#fff"}}></div>}
+                  </div>
+                  <span style={{fontSize:13,fontWeight:selected?700:400,color:selected?"#1b4332":"#555"}}>{s.label}</span>
+                </div>
+                <button onClick={function(e){e.stopPropagation();playPreview(s.num);}} style={{background:"#e8f5e9",color:"#2d6a4f",border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>▶ 미리듣기</button>
+              </div>
+            );
+          })}
+          <div style={{fontSize:10,color:"#aaa",marginTop:4}}>* 저장하기 버튼을 눌러야 설정이 유지됩니다</div>
+        </div>
+        <button onClick={saveDealer} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s",marginBottom:10}}>
+          {isSaved ? "✅ 저장되었습니다" : "저장하기"}
+        </button>
+        <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>로그아웃</button>
       </div>}
 
-      {dealerTab !== "settings" && <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:8}}>로그아웃</button>}
+      {dealerTab === "items" && <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:8}}>로그아웃</button>}
     </div>
   );
 }
