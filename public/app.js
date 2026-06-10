@@ -1393,6 +1393,8 @@ function DealerMyPage(props) {
 function App() {
   var t1 = useState("search"); var tab = t1[0]; var setTab = t1[1];
   var f1 = useState(""); var filterItem = f1[0]; var setFilterItem = f1[1];
+  var f1b = useState(""); var filterGrade = f1b[0]; var setFilterGrade = f1b[1];
+  var f1c = useState(""); var filterUnit = f1c[0]; var setFilterUnit = f1c[1];
   var f2 = useState(""); var filterRegion = f2[0]; var setFilterRegion = f2[1];
   var f3 = useState(""); var keyword = f3[0]; var setKeyword = f3[1];
   var f4 = useState("price"); var sortBy = f4[0]; var setSortBy = f4[1];
@@ -1648,8 +1650,9 @@ function App() {
   var prevDate = prevAllDates[prevAllDates.length-1] || YESTERDAY;
 
   var filtered = activeData.filter(function(r){
-    if(filterCategory && r.category !== filterCategory) return false;
     if(filterItem && r.itemName !== filterItem) return false;
+    if(filterGrade && r.grade !== filterGrade) return false;
+    if(filterUnit && r.unit !== filterUnit) return false;
     if(filterMarket && r.market.name !== filterMarket) return false;
     if(filterRegion && r.market.region !== filterRegion) return false;
     if(keyword && !r.fullName.includes(keyword) && !r.market.name.includes(keyword) && !r.corp.includes(keyword) && !r.origin.includes(keyword)) return false;
@@ -1661,11 +1664,10 @@ function App() {
     return 0;
   });
 
-  var categoryList = Array.from(new Set(data.map(function(r){return r.category;}))).sort();
-  var itemList = Array.from(new Set(
-    data.filter(function(r){return !filterCategory||r.category===filterCategory;}).map(function(r){return r.itemName;})
-  )).sort();
-  // 9개 시장 항상 고정 표시 (데이터 유무 상관없이)
+  var itemList = Array.from(new Set(activeData.map(function(r){return r.itemName;}).filter(Boolean))).sort();
+  var gradeList = Array.from(new Set(activeData.map(function(r){return r.grade||"";}).filter(Boolean))).sort();
+  var unitList  = Array.from(new Set(activeData.map(function(r){return r.unit||"";}).filter(Boolean))).sort();
+  // 9개 시장 항상 고정 표시
   var marketList = MARKETS.map(function(m){ return m.name; });
 
   var stats = {
@@ -1750,22 +1752,34 @@ function App() {
           <div style={{background:"#fff",borderRadius:16,padding:"16px",marginBottom:14,border:"1px solid #e5e7eb",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
             <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:12}}>🔍 경락가 검색</div>
 
+            {/* 품목 선택 */}
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목</div>
+              <select value={filterItem} onChange={function(e){setFilterItem(e.target.value); setFilterGrade(""); setFilterUnit("");}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+                <option value="">전체 품목</option>
+                {itemList.map(function(name){return <option key={name} value={name}>{getEmoji(name)+" "+name}</option>;})}
+              </select>
+            </div>
+
+            {/* 등급 + 단위 */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <div>
-                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>분류</div>
-                <select value={filterCategory} onChange={function(e){setFilterCategory(e.target.value);setFilterItem("");}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
-                  <option value="">전체 분류</option>
-                  {categoryList.map(function(cat){return <option key={cat} value={cat}>{cat}</option>;})}
+                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>등급</div>
+                <select value={filterGrade} onChange={function(e){setFilterGrade(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+                  <option value="">전체 등급</option>
+                  {gradeList.map(function(g){return <option key={g} value={g}>{g}</option>;})}
                 </select>
               </div>
               <div>
-                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>품목</div>
-                <select value={filterItem} onChange={function(e){setFilterItem(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
-                  <option value="">전체 품목</option>
-                  {itemList.map(function(name){return <option key={name} value={name}>{getEmoji(name)+" "+name}</option>;})}
+                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>단위</div>
+                <select value={filterUnit} onChange={function(e){setFilterUnit(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
+                  <option value="">전체 단위</option>
+                  {unitList.map(function(u){return <option key={u} value={u}>{u}</option>;})}
                 </select>
               </div>
             </div>
+
+            {/* 도매시장 */}
             <div style={{marginBottom:8}}>
               <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>도매시장</div>
               <select value={filterMarket} onChange={function(e){setFilterMarket(e.target.value);}} style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"9px 10px",fontSize:13,background:"#f8fffe",outline:"none"}}>
