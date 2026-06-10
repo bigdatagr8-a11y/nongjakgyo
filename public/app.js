@@ -2943,7 +2943,8 @@ function App() {
       )).sort()
     : [];
 
-  var gradeList = Array.from(new Set(activeData.map(function(r){return r.grade||"";}).filter(Boolean))).sort();
+  var VALID_GRADES = ["특","상","보통","특등","상등"];
+  var gradeList = Array.from(new Set(activeData.map(function(r){return r.grade||"";}).filter(function(g){ return VALID_GRADES.indexOf(g) !== -1; }))).sort(function(a,b){ return VALID_GRADES.indexOf(a) - VALID_GRADES.indexOf(b); });
 
   // 단위 구간화
   var unitList = UNIT_RANGES.map(function(r){ return r.label; });
