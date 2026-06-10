@@ -1521,18 +1521,14 @@ function App() {
           };
         }).filter(function(r){ return r.itemName && r.price >= 1000; });
 
-        // 품목+시장+법인+단위 기준으로 가장 최신 거래 하나만 사용
-        var groups = {};
-        liveRows.forEach(function(r){
-          var key = r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.variety+"_"+r.unit;
-          if(!groups[key]) {
-            groups[key] = r;
-          } else {
-            // 더 최신 경매일시 우선
-            if(r.date > groups[key].date) groups[key] = r;
-          }
+        // 완전히 동일한 행만 제거 (경매일시+시장+법인+품목+품종+산지+수량+단위+가격)
+        var seen = {};
+        var combined = liveRows.filter(function(r){
+          var key = r.date+"_"+r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.variety+"_"+r.origin+"_"+r.qty+"_"+r.unit+"_"+r.price;
+          if(seen[key]) return false;
+          seen[key] = true;
+          return true;
         });
-        var combined = Object.keys(groups).map(function(k){ return groups[k]; });
 
         var noeunCount = combined.filter(function(r){ return r.market.id === 8; }).length;
         setData(combined);
