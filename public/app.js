@@ -640,6 +640,39 @@ function RecordCard(props) {
   var pmt = useState(""); var payMethod = pmt[0]; var setPayMethod = pmt[1];
   var buyQtyS = useState(1); var buyQty = buyQtyS[0]; var setBuyQty = buyQtyS[1];
 
+  // 장바구니 담기 함수
+  function addToCart(t, no, itemKey) {
+    try {
+      var uid = loginUser ? loginUser.id : "guest";
+      var cart = JSON.parse(localStorage.getItem("agro_cart_"+uid)||"[]");
+      var info = getDealerInfo(no);
+      var price = parseInt((t["단가"]||"0").replace(/,/g,""))||0;
+      var qty = parseInt((t["수량"]||"1").replace(/,/g,""))||1;
+      var weight = (t["중량"]||"").trim();
+      var deposit = Math.max(5000, Math.round(price * qty * 0.1 / 1000) * 1000);
+      // 중복 체크
+      var exists = cart.find(function(c){ return c.itemKey === itemKey; });
+      if(exists){ alert("이미 장바구니에 담긴 상품입니다."); return; }
+      cart.push({
+        itemKey: itemKey,
+        no: no,
+        dealerName: info.name,
+        dealerPhone: info.phone,
+        itemName: (t["품목명"]||"").trim(),
+        grade: (t["등급"]||"").trim(),
+        origin: (t["산지명"]||"").trim(),
+        weight: weight,
+        qty: qty,
+        price: price,
+        deposit: deposit,
+        total: price * qty,
+        addedAt: new Date().toLocaleDateString("ko-KR"),
+      });
+      localStorage.setItem("agro_cart_"+uid, JSON.stringify(cart));
+      alert("🧺 장바구니에 담겼습니다!\n마이페이지에서 확인하세요.");
+    } catch(e){ alert("오류가 발생했습니다."); }
+  }
+
   // 잔액 읽기/쓰기
   function getBalance(){ try { return parseInt(localStorage.getItem("agro_balance_"+(loginUser&&loginUser.id||"guest"))||"0"); } catch(e){ return 0; } }
   function saveBalance(v){ try { localStorage.setItem("agro_balance_"+(loginUser&&loginUser.id||"guest"), String(v)); } catch(e){} }
@@ -902,9 +935,13 @@ function RecordCard(props) {
                                   if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
                                   setBuyQty(1);
                                   setPayModal({no:no,tradeRow:t,itemKey:itemKey,maxQty:parseInt(qty)||1});
-                                }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+                                }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+                                <button onClick={function(){
+                                  if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
+                                  addToCart(t, no, itemKey);
+                                }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
                                 <button onClick={function(){ window._chatDealer={no:dealerPrivate?"익명":no, tradeRow:t, chatType:"inquiry", anonymous:dealerPrivate}; setShowChat(true); }}
-                                  style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 {dealerPrivate?"익명 채팅":"채팅"}</button>
+                                  style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
                               </>
                           }
                         </div>
@@ -1639,6 +1676,115 @@ function BuyerMyPage(props) {
           {isSaved ? "✅ 저장되었습니다" : "저장하기"}
         </button>
       </div>
+
+      {/* 장바구니 */}
+      {(function(){
+        var cart = [];
+        try { cart = JSON.parse(localStorage.getItem("agro_cart_"+user.id)||"[]"); } catch(e){}
+        var carts = useState(cart); var cartItems = carts[0]; var setCartItems = carts[1];
+        var cpay = useState(false); var cartPayDone = cpay[0]; var setCartPayDone = cpay[1];
+        var cpmt2 = useState(""); var cartPayMethod = cpmt2[0]; var setCartPayMethod = cpmt2[1];
+
+        var totalDeposit = cartItems.reduce(function(s,c){return s+(c.deposit||0);},0);
+        var totalAmount  = cartItems.reduce(function(s,c){return s+(c.total||0);},0);
+
+        function removeFromCart(itemKey) {
+          var next = cartItems.filter(function(c){return c.itemKey !== itemKey;});
+          setCartItems(next);
+          try { localStorage.setItem("agro_cart_"+user.id, JSON.stringify(next)); } catch(e){}
+        }
+
+        function checkoutCart() {
+          if(!cartPayMethod){ alert("결제 수단을 선택해주세요."); return; }
+          if(cartPayMethod==="balance" && balance < totalDeposit){
+            alert("예치금이 부족합니다.\n현재 잔액: "+balance.toLocaleString()+"원\n필요 금액: "+totalDeposit.toLocaleString()+"원");
+            return;
+          }
+          // 예치금 차감
+          if(cartPayMethod==="balance"){
+            var newBal = balance - totalDeposit;
+            setBalance(newBal);
+            setBalanceState(newBal);
+          }
+          // 구매 내역 저장
+          try {
+            var existing = JSON.parse(localStorage.getItem("agro_purchase_"+user.id)||"[]");
+            cartItems.forEach(function(c){
+              existing.push({key:c.itemKey, itemName:c.itemName, grade:c.grade, origin:c.origin, price:c.price, qty:c.qty, deposit:c.deposit, total:c.total, payMethod:cartPayMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:c.dealerName});
+            });
+            localStorage.setItem("agro_purchase_"+user.id, JSON.stringify(existing));
+          } catch(e){}
+          // 장바구니 비우기
+          setCartItems([]);
+          try { localStorage.setItem("agro_cart_"+user.id, "[]"); } catch(e){}
+          setCartPayDone(true);
+        }
+
+        if(cartItems.length === 0 && !cartPayDone) return null;
+
+        return (
+          <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #fed7aa"}}>
+            <div style={{fontWeight:800,fontSize:14,color:"#c2410c",marginBottom:14}}>🧺 장바구니 {cartItems.length > 0 ? "("+cartItems.length+"건)" : ""}</div>
+            {cartPayDone ? (
+              <div style={{textAlign:"center",padding:"20px 0"}}>
+                <div style={{fontSize:36,marginBottom:8}}>✅</div>
+                <div style={{fontWeight:800,fontSize:15,color:G.mid}}>장바구니 결제 완료!</div>
+                <div style={{fontSize:12,color:"#888",marginTop:4}}>예약 내역에서 확인하세요</div>
+                <button onClick={function(){setCartPayDone(false);}} style={{marginTop:12,background:"#f3f4f6",color:"#555",border:"none",borderRadius:10,padding:"8px 20px",fontSize:12,fontWeight:700,cursor:"pointer"}}>닫기</button>
+              </div>
+            ) : <>
+              {cartItems.map(function(c){
+                return (
+                  <div key={c.itemKey} style={{background:"#fff7ed",borderRadius:10,padding:"12px",marginBottom:8,border:"1px solid #fed7aa"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                      <div>
+                        <span style={{fontWeight:700,fontSize:13}}>{c.itemName}</span>
+                        {c.grade && <span style={{background:"#fef9c3",color:"#854d0e",fontSize:10,fontWeight:700,borderRadius:6,padding:"1px 6px",marginLeft:5}}>{c.grade}</span>}
+                        <div style={{fontSize:11,color:"#666",marginTop:2}}>{c.origin} · {c.qty}개 · {c.dealerName}</div>
+                      </div>
+                      <button onClick={function(){removeFromCart(c.itemKey);}} style={{background:"none",border:"none",color:"#aaa",fontSize:16,cursor:"pointer",padding:"0 4px"}}>✕</button>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:12,color:"#888"}}>보증금 <b style={{color:"#c2410c"}}>{(c.deposit||0).toLocaleString()}원</b></span>
+                      <span style={{fontSize:11,color:"#aaa"}}>총액 {(c.total||0).toLocaleString()}원</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{background:"#fff",borderRadius:10,padding:"12px",marginBottom:10,border:"1px solid #e5e7eb"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <span style={{fontSize:12,color:"#888"}}>총 보증금</span>
+                  <span style={{fontSize:14,fontWeight:900,color:"#c2410c"}}>{totalDeposit.toLocaleString()}원</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <span style={{fontSize:11,color:"#aaa"}}>수령 시 잔금</span>
+                  <span style={{fontSize:12,color:"#888"}}>{(totalAmount-totalDeposit).toLocaleString()}원</span>
+                </div>
+              </div>
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>결제 수단</div>
+                {[["balance","💰 예치금 결제"],["card","💳 카드"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
+                  var sel = cartPayMethod===pm[0];
+                  var notEnough = pm[0]==="balance" && balance < totalDeposit;
+                  return <div key={pm[0]} onClick={function(){if(!notEnough)setCartPayMethod(pm[0]);}}
+                    style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:"1.5px solid "+(sel?"#c2410c":"#e5e7eb"),marginBottom:6,background:sel?"#fff7ed":"#fff",cursor:notEnough?"not-allowed":"pointer",opacity:notEnough?0.5:1}}>
+                    <span style={{fontSize:14}}>{pm[1].split(" ")[0]}</span>
+                    <span style={{fontSize:12,fontWeight:sel?700:400,color:sel?"#c2410c":"#333"}}>{pm[1].split(" ").slice(1).join(" ")}</span>
+                    {pm[0]==="balance" && <span style={{marginLeft:"auto",fontSize:10,color:notEnough?"#ef4444":"#059669"}}>잔액 {balance.toLocaleString()}원</span>}
+                    {sel && pm[0]!=="balance" && <span style={{marginLeft:"auto",color:"#c2410c",fontSize:11,fontWeight:700}}>✓</span>}
+                  </div>;
+                })}
+              </div>
+              <button onClick={checkoutCart} disabled={!cartPayMethod||cartItems.length===0}
+                style={{width:"100%",background:cartPayMethod?"linear-gradient(135deg,#9a3412,#c2410c)":"#d1d5db",color:"#fff",border:"none",borderRadius:12,padding:"13px",fontSize:14,fontWeight:900,cursor:cartPayMethod?"pointer":"not-allowed"}}>
+                🧺 장바구니 {cartItems.length}건 일괄 결제 ({totalDeposit.toLocaleString()}원)
+              </button>
+            </>}
+          </div>
+        );
+      })()}
+
+      {/* 보증금(예치금) 현황 */}
       {(function(){
         var purchases = [];
         try { var raw = localStorage.getItem("agro_purchase_"+user.id); purchases = raw ? JSON.parse(raw) : []; } catch(e){}
