@@ -11,6 +11,44 @@ var TODAY = getKST(0), YESTERDAY = getKST(-1);
 
 var G = {dark:"#0d2b1a",mid:"#1b4332",main:"#2d6a4f",light:"#40916c",pale:"#d1fae5",bg:"#f0fdf4",border:"#bbf7d0"};
 
+// ── 배송비 계산 함수 (출발지 시장 → 도착지 구매자) ──
+var SHIPPING_RATES = {
+  "CJ대한통운": [{max:1,base:4000},{max:3,base:4500},{max:5,base:5000},{max:10,base:6000},{max:999,base:7500}],
+  "로젠택배":   [{max:1,base:3500},{max:3,base:4000},{max:5,base:4500},{max:10,base:5500},{max:999,base:7000}],
+  "한진택배":   [{max:1,base:4200},{max:3,base:4700},{max:5,base:5200},{max:10,base:6200},{max:999,base:7700}],
+  "우체국택배": [{max:1,base:3000},{max:3,base:3500},{max:5,base:4000},{max:10,base:5000},{max:999,base:6500}],
+};
+var SIDO_GROUP = {
+  "서울":"수도권","경기":"수도권","인천":"수도권",
+  "세종":"충청권","대전":"충청권","충남":"충청권","충북":"충청권",
+  "부산":"경상권","대구":"경상권","경북":"경상권","경남":"경상권","울산":"경상권",
+  "광주":"전라권","전북":"전라권","전남":"전라권",
+  "강원":"강원권",
+  "제주":"제주",
+};
+var GROUP_DIST = {
+  "수도권-수도권":"같은","수도권-충청권":"인근","수도권-강원권":"인근","수도권-경상권":"먼","수도권-전라권":"먼","수도권-제주":"제주",
+  "충청권-충청권":"같은","충청권-수도권":"인근","충청권-전라권":"인근","충청권-경상권":"인근","충청권-강원권":"인근","충청권-제주":"제주",
+  "경상권-경상권":"같은","경상권-전라권":"인근","경상권-충청권":"인근","경상권-수도권":"먼","경상권-강원권":"먼","경상권-제주":"제주",
+  "전라권-전라권":"같은","전라권-경상권":"인근","전라권-충청권":"인근","전라권-수도권":"먼","전라권-강원권":"먼","전라권-제주":"제주",
+  "강원권-강원권":"같은","강원권-수도권":"인근","강원권-충청권":"인근","강원권-경상권":"먼","강원권-전라권":"먼","강원권-제주":"제주",
+  "제주-제주":"같은",
+};
+var ZONE_EXTRA = {"같은":0,"인근":500,"먼":1000,"제주":3000};
+var ZONE_LABEL = {"같은":"같은 권역","인근":"인근 지역","먼":"먼 지역","제주":"제주/도서산간"};
+function calcShipping(kg, fromSido, toSido, carrier) {
+  carrier = carrier || "CJ대한통운";
+  var rates = SHIPPING_RATES[carrier];
+  var base = rates[rates.length-1].base;
+  for(var i=0;i<rates.length;i++){ if(kg<=rates[i].max){ base=rates[i].base; break; } }
+  var fromGroup = SIDO_GROUP[fromSido] || "수도권";
+  var toGroup   = SIDO_GROUP[toSido]   || "수도권";
+  var zoneKey = fromGroup+"-"+toGroup;
+  var zone = GROUP_DIST[zoneKey] || GROUP_DIST[toGroup+"-"+fromGroup] || "먼";
+  var extra = ZONE_EXTRA[zone] || 0;
+  return {base:base,extra:extra,total:base+extra,zone:zone,zoneLabel:ZONE_LABEL[zone]||zone,carrier:carrier,fromSido:fromSido,toSido:toSido};
+}
+
 var EMOJI_MAP = {
   "복숭아":"🍑","토마토":"🍅","수박":"🍉","참외":"🍈","블루베리":"🫐","딸기":"🍓",
   "배":"🍐","사과":"🍎","감귤":"🍊","포도":"🍇","메론":"🍈","바나나":"🍌",
@@ -639,13 +677,24 @@ function RecordCard(props) {
   var r = props.record, rank = props.rank, tradeData = props.tradeData || [];
   var purchases = props.purchases || {}, setPurchases = props.setPurchases || function(){};
   var loginUser = props.loginUser;
+  var sortBy = props.sortBy || "price";
   var isTop = rank === 1;
+
+  // 실속가순일 때 배송비 계산 (출발: 시장 지역 → 도착: 구매자 사업장)
+  var shippingInfo = null;
+  if(sortBy === "smart") {
+    var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
+    var unitKg = parseFloat((r.unit||"").replace(/kg.*/i,""))||1;
+    var fromSido = r.market.region || "서울";
+    shippingInfo = userSido ? calcShipping(unitKg, fromSido, userSido) : null;
+  }
   var rs = useState(false); var showReviews = rs[0]; var setShowReviews = rs[1];
   var ts = useState(false); var showTrade = ts[0]; var setShowTrade = ts[1];
   var cs = useState(false); var showChat = cs[0]; var setShowChat = cs[1];
   var pm = useState(null); var payModal = pm[0]; var setPayModal = pm[1];
   var pp = useState(false); var payDone = pp[0]; var setPayDone = pp[1];
   var pmt = useState(""); var payMethod = pmt[0]; var setPayMethod = pmt[1];
+  var buyQtyS = useState(1); var buyQty = buyQtyS[0]; var setBuyQty = buyQtyS[1];
 
   // 잔액 읽기/쓰기
   function getBalance(){ try { return parseInt(localStorage.getItem("agro_balance_"+(loginUser&&loginUser.id||"guest"))||"0"); } catch(e){ return 0; } }
@@ -739,7 +788,10 @@ function RecordCard(props) {
           {r.market.id !== 8 && <div style={{textAlign:"right"}}>
             <div style={{fontWeight:900,fontSize:19,color:G.mid}}>{displayPrice.toLocaleString()}<span style={{fontSize:12,fontWeight:500}}>원</span></div>
             <div style={{fontSize:10,color:"#888",marginTop:1,fontWeight:600}}>/ {displayUnit}</div>
-            {r.unitKg && r.unitKg > 0 && <div style={{fontSize:10,color:"#aaa",marginTop:1}}>(kg당 {Math.round(displayPrice/r.unitKg).toLocaleString()}원)</div>}
+            {shippingInfo && <div style={{marginTop:4,textAlign:"right"}}>
+              <div style={{fontSize:10,color:"#64748b"}}>🚚 {shippingInfo.fromSido}→{shippingInfo.toSido} {shippingInfo.zoneLabel} +{shippingInfo.extra.toLocaleString()}원</div>
+              <div style={{fontSize:11,fontWeight:900,color:"#7c3aed",marginTop:1}}>실속가 {(displayPrice+shippingInfo.total).toLocaleString()}원</div>
+            </div>}
           </div>}
         </div>
 
@@ -867,7 +919,8 @@ function RecordCard(props) {
                             : <>
                                 <button onClick={function(){
                                   if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
-                                  setPayModal({no:no,tradeRow:t,itemKey:itemKey});
+                                  setBuyQty(1);
+                                  setPayModal({no:no,tradeRow:t,itemKey:itemKey,maxQty:parseInt(qty)||1});
                                 }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
                                 <button onClick={function(){ window._chatDealer={no:no,tradeRow:t,chatType:"inquiry"}; setShowChat(true); }}
                                   style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
@@ -904,10 +957,11 @@ function RecordCard(props) {
           var itemName = (t&&t["품목명"]) || r.itemName;
           var grade = (t&&t["등급"]) || "";
           var price = parseInt((t&&t["단가"])||r.price)||0;
-          var qty = (t&&t["수량"]) || r.qty;
+          var maxQty = payModal.maxQty || parseInt((t&&t["수량"])||r.qty) || 1;
           var origin = (t&&t["산지명"]) || r.origin;
           var dealerInfo = getDealerInfo(payModal.no);
-          var total = price * qty;
+          var safeQty = Math.max(1, Math.min(buyQty, maxQty));
+          var total = price * safeQty;
           var deposit = Math.max(5000, Math.round(total * 0.1 / 1000) * 1000);
           return (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={function(e){if(e.target===e.currentTarget)setPayModal(null);}}>
@@ -923,14 +977,29 @@ function RecordCard(props) {
                     {[
                       ["산지",origin||"-"],
                       ["등급",grade||"-"],
-                      ["수량",qty+"개"],
                       ["단가",price.toLocaleString()+"원"],
-                      ["총 거래금액",total.toLocaleString()+"원"],
                     ].map(function(row){return(
                       <div key={row[0]} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #e5e7eb",fontSize:13}}>
                         <span style={{color:"#888"}}>{row[0]}</span>
-                        <span style={{fontWeight:row[0]==="총 거래금액"?900:500,color:row[0]==="총 거래금액"?"#1e40af":"#333",fontSize:row[0]==="총 거래금액"?14:13}}>{row[1]}</span>
+                        <span style={{fontWeight:500,color:"#333"}}>{row[1]}</span>
                       </div>
+                    );})}
+                    {/* 수량 조절 */}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #e5e7eb"}}>
+                      <span style={{color:"#888",fontSize:13}}>구매 수량</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <button onClick={function(){setBuyQty(function(q){return Math.max(1,q-1);});}}
+                          style={{width:28,height:28,borderRadius:"50%",border:"1.5px solid #d1d5db",background:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#555"}}>−</button>
+                        <span style={{fontSize:15,fontWeight:700,minWidth:32,textAlign:"center"}}>{safeQty}개</span>
+                        <button onClick={function(){setBuyQty(function(q){return Math.min(maxQty,q+1);});}}
+                          style={{width:28,height:28,borderRadius:"50%",border:"1.5px solid #d1d5db",background:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#555"}}>+</button>
+                        <span style={{fontSize:10,color:"#aaa"}}>/ 최대 {maxQty}개</span>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",fontSize:13}}>
+                      <span style={{color:"#888"}}>총 거래금액</span>
+                      <span style={{fontWeight:900,color:"#1e40af",fontSize:14}}>{total.toLocaleString()}원</span>
+                    </div>
                     );})}
                   </div>
                   <div style={{background:"linear-gradient(135deg,#ecfdf5,#d1fae5)",border:"1.5px solid #6ee7b7",borderRadius:12,padding:"14px",marginBottom:12}}>
@@ -1089,7 +1158,7 @@ function RecordCard(props) {
                               body:JSON.stringify({
                                 dealerNo:payModal.no, itemKey:payModal.itemKey,
                                 buyer:(loginUser&&loginUser.name)||"구매자",
-                                itemName:itemName, grade:grade, price:price, qty:qty, unit:"개", origin:origin,
+                                itemName:itemName, grade:grade, price:price, qty:safeQty, unit:"개", origin:origin,
                                 deposit:deposit, total:total, payMethod:payMethod
                               })
                             });
@@ -1106,7 +1175,7 @@ function RecordCard(props) {
                               try {
                                 var uid = loginUser ? loginUser.id : "guest";
                                 var existing = JSON.parse(localStorage.getItem("agro_purchase_"+uid)||"[]");
-                                existing.push({key:pKey, itemName:itemName, grade:grade, origin:origin, price:price, qty:qty, deposit:deposit, total:total, payMethod:payMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:dealerInfo.name});
+                                existing.push({key:pKey, itemName:itemName, grade:grade, origin:origin, price:price, qty:safeQty, deposit:deposit, total:total, payMethod:payMethod, date:new Date().toLocaleDateString("ko-KR"), dealerName:dealerInfo.name});
                                 localStorage.setItem("agro_purchase_"+uid, JSON.stringify(existing));
                               } catch(e){}
                               setPayDone(true);
@@ -1354,31 +1423,45 @@ function LoginModal(props) {
 function BuyerMyPage(props) {
   var user = props.user, onLogout = props.onLogout;
   var _s = (function(){ try { return JSON.parse(localStorage.getItem("agro_buyer_"+user.id)||"{}" ); } catch(e){ return {}; } })();
-  var ns = useState(_s.name||user.name||""); var name = ns[0]; var setName = ns[1];
-  var bs = useState(_s.biz||user.biz||""); var biz = bs[0]; var setBiz = bs[1];
-  var bnos = useState(_s.bizNo||user.bizNo||""); var bizNo = bnos[0]; var setBizNo = bnos[1];
-  var phs = useState(_s.phone||user.phone||""); var phone = phs[0]; var setPhone = phs[1];
-  var ats = useState(_s.alarmSound||"1"); var alarmSound = ats[0]; var setAlarmSound = ats[1];
+  var ns   = useState(_s.name||user.name||"");   var name   = ns[0];   var setName   = ns[1];
+  var bs   = useState(_s.biz||user.biz||"");     var biz    = bs[0];   var setBiz    = bs[1];
+  var bnos = useState(_s.bizNo||user.bizNo||""); var bizNo  = bnos[0]; var setBizNo  = bnos[1];
+  var phs  = useState(_s.phone||user.phone||""); var phone  = phs[0];  var setPhone  = phs[1];
+  var ats  = useState(_s.alarmSound||"1");       var alarmSound = ats[0]; var setAlarmSound = ats[1];
+  var addrs = useState(_s.bizAddr||"");          var bizAddr = addrs[0]; var setBizAddr = addrs[1];
+  var bizSidos = useState(_s.bizSido||"");       var bizSido = bizSidos[0]; var setBizSido = bizSidos[1];
+  var bizLookup = useState(false); var showBizLookup = bizLookup[0]; var setShowBizLookup = bizLookup[1];
+  var bizNum  = useState(_s.bizNum||"");         var bizNum_  = bizNum[0]; var setBizNum = bizNum[1];
   var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
 
-  // 잔액 state (localStorage 기반)
+  // 잔액 state
   function getBalance(){ try { return parseInt(localStorage.getItem("agro_balance_"+user.id)||"0"); } catch(e){ return 0; } }
   function setBalance(v){ try { localStorage.setItem("agro_balance_"+user.id, String(v)); } catch(e){} }
   var bals = useState(getBalance()); var balance = bals[0]; var setBalanceState = bals[1];
   function updateBalance(v){ setBalance(v); setBalanceState(v); }
 
   // 충전 모달
-  var chs = useState(false); var showCharge = chs[0]; var setShowCharge = chs[1];
-  var camt = useState(""); var chargeAmt = camt[0]; var setChargeAmt = camt[1];
-  var cpmt = useState("card"); var chargePay = cpmt[0]; var setChargePay = cpmt[1];
-  var cdone = useState(false); var chargeDone = cdone[0]; var setChargeDone = cdone[1];
+  var chs  = useState(false); var showCharge  = chs[0];  var setShowCharge  = chs[1];
+  var camt = useState("");    var chargeAmt   = camt[0]; var setChargeAmt   = camt[1];
+  var cpmt = useState("card"); var chargePay  = cpmt[0]; var setChargePay   = cpmt[1];
+  var cdone= useState(false); var chargeDone  = cdone[0];var setChargeDone  = cdone[1];
+
+  // 사업자등록번호 가상 조회 데이터
+  var BIZ_LOOKUP = {
+    "123-45-67890": {name:"김소매",biz:"소매상회",addr:"대전 유성구 대학로 99",sido:"대전"},
+    "234-56-78901": {name:"이과일",biz:"(주)신선유통",addr:"서울 송파구 올림픽로 300",sido:"서울"},
+    "345-67-89012": {name:"박도매",biz:"청과유통(주)",addr:"부산 해운대구 센텀중앙로 55",sido:"부산"},
+    "456-78-90123": {name:"최신선",biz:"농산물유통센터",addr:"경기 성남시 분당구 판교로 235",sido:"경기"},
+    "567-89-01234": {name:"정농부",biz:"직거래농장",addr:"충남 논산시 강경읍 시장3길 12",sido:"충남"},
+    "678-90-12345": {name:"한청과",biz:"청과물상회",addr:"광주 북구 첨단과기로 208",sido:"광주"},
+  };
 
   function playPreview(num) {
     try { var names = {"1":"작교1.wav","2":"작교2.wav","3":"작교3.m4a","4":"작교4.m4a"}; var a = new Audio("/sounds/"+names[num]); a.play(); } catch(e){}
   }
 
   function save() {
-    try { localStorage.setItem("agro_buyer_"+user.id, JSON.stringify({name:name,biz:biz,bizNo:bizNo,phone:phone,alarmSound:alarmSound})); } catch(e){}
+    try { localStorage.setItem("agro_buyer_"+user.id, JSON.stringify({name:name,biz:biz,bizNo:bizNo,bizNum:bizNum_,phone:phone,alarmSound:alarmSound,bizAddr:bizAddr,bizSido:bizSido})); } catch(e){}
     setSaved(true);
     setTimeout(function(){setSaved(false);}, 2000);
   }
@@ -1393,10 +1476,49 @@ function BuyerMyPage(props) {
 
       <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:14}}>📋 내 정보</div>
+
+        {/* 사업자등록번호 조회 */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>사업자등록번호</div>
+          <div style={{display:"flex",gap:6}}>
+            <input value={bizNum_} onChange={function(e){
+              var v = e.target.value.replace(/[^0-9]/g,"");
+              if(v.length>3&&v.length<=5) v=v.substring(0,3)+"-"+v.substring(3);
+              else if(v.length>5) v=v.substring(0,3)+"-"+v.substring(3,5)+"-"+v.substring(5,10);
+              setBizNum(v);
+            }} placeholder="000-00-00000" maxLength={12}
+              style={{flex:1,border:"1.5px solid #bbf7d0",borderRadius:10,padding:"10px 12px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+            <button onClick={function(){
+              var found = BIZ_LOOKUP[bizNum_];
+              if(found){
+                setName(found.name); setBiz(found.biz); setBizAddr(found.addr); setBizSido(found.sido);
+                setShowBizLookup(true);
+              } else {
+                // 미등록도 입력값 유지
+                setShowBizLookup(false);
+                alert("사업자 정보를 찾을 수 없습니다.\n직접 입력해주세요.");
+              }
+            }} style={{background:"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:10,padding:"10px 14px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
+              🔍 조회
+            </button>
+          </div>
+          {showBizLookup && BIZ_LOOKUP[bizNum_] && (
+            <div style={{marginTop:8,background:"#f0fdf4",borderRadius:10,padding:"12px",border:"1px solid #bbf7d0"}}>
+              <div style={{fontSize:11,fontWeight:700,color:G.mid,marginBottom:6}}>✅ 사업자 정보 확인</div>
+              {[["상호",BIZ_LOOKUP[bizNum_].biz],["대표자",BIZ_LOOKUP[bizNum_].name],["사업장 주소",BIZ_LOOKUP[bizNum_].addr]].map(function(r){return(
+                <div key={r[0]} style={{display:"flex",gap:8,marginBottom:3}}>
+                  <span style={{fontSize:11,color:"#888",minWidth:60}}>{r[0]}</span>
+                  <span style={{fontSize:11,fontWeight:600,color:"#1a1a1a"}}>{r[1]}</span>
+                </div>
+              );})}
+            </div>
+          )}
+        </div>
+
         {[
           ["담당자명","text",name,setName,"홍길동"],
           ["상호","text",biz,setBiz,"소매상회"],
-          ["사업자 등록번호","text",bizNo,setBizNo,"123-45-67890"],
+          ["사업자 등록번호 (구분)","text",bizNo,setBizNo,"123-45-67890"],
           ["연락처","tel",phone,setPhone,"010-0000-0000"],
         ].map(function(f){return(
           <div key={f[0]} style={{marginBottom:12}}>
@@ -1405,6 +1527,20 @@ function BuyerMyPage(props) {
               style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"10px 12px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
           </div>
         );})}
+
+        {/* 사업장 주소 */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>사업장 주소 <span style={{color:G.light,fontWeight:400}}>(배송비 계산에 사용)</span></div>
+          <input value={bizAddr} onChange={function(e){setBizAddr(e.target.value);}} placeholder="서울 송파구 올림픽로 300"
+            style={{width:"100%",border:"1.5px solid #bbf7d0",borderRadius:10,padding:"10px 12px",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",marginBottom:6}}/>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {["서울","경기","인천","부산","대구","광주","대전","울산","세종","강원","충북","충남","전북","전남","경북","경남","제주"].map(function(s){
+              return <button key={s} onClick={function(){setBizSido(s);}} style={{padding:"4px 10px",borderRadius:20,border:"1.5px solid "+(bizSido===s?G.mid:"#e5e7eb"),background:bizSido===s?"#f0fdf4":"#fff",color:bizSido===s?G.mid:"#888",fontSize:11,fontWeight:bizSido===s?700:400,cursor:"pointer"}}>{s}</button>;
+            })}
+          </div>
+          {bizSido && <div style={{marginTop:6,fontSize:11,color:G.mid,fontWeight:600}}>📍 배송 기준 지역: {bizSido}</div>}
+        </div>
+
         <button onClick={save} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s"}}>
           {isSaved ? "✅ 저장되었습니다" : "저장하기"}
         </button>
@@ -2074,7 +2210,16 @@ function App() {
     return true;
   }).sort(function(a,b){
     if(sortBy==="price") return a.price - b.price;
-    if(sortBy==="date") return b.date > a.date ? 1 : -1;
+    if(sortBy==="smart") {
+      var userSido2 = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
+      var aKg = parseFloat((a.unit||"").replace(/kg.*/i,""))||1;
+      var bKg = parseFloat((b.unit||"").replace(/kg.*/i,""))||1;
+      var aFrom = a.market ? a.market.region : "서울";
+      var bFrom = b.market ? b.market.region : "서울";
+      var aShip = userSido2 ? calcShipping(aKg, aFrom, userSido2).total : 0;
+      var bShip = userSido2 ? calcShipping(bKg, bFrom, userSido2).total : 0;
+      return (a.price + aShip) - (b.price + bShip);
+    }
     if(sortBy==="qty") return b.qty - a.qty;
     return 0;
   });
@@ -2260,10 +2405,31 @@ function App() {
             </div>
 
             <div style={{display:"flex",gap:6,marginBottom:12}}>
-              {[["price","💰 최저가순"],["date","🕐 최신순"],["qty","📦 수량순"]].map(function(s){return (
+              {[["price","💰 최저가순"],["smart","🚚 실속가순"],["qty","📦 수량순"]].map(function(s){return (
                 <button key={s[0]} onClick={function(){setSortBy(s[0]);}} style={{flex:1,padding:"8px 0",background:sortBy===s[0]?G.mid:"#fff",color:sortBy===s[0]?"#fff":"#666",border:"1px solid "+(sortBy===s[0]?G.mid:"#e5e7eb"),borderRadius:20,fontSize:11,fontWeight:sortBy===s[0]?700:400,cursor:"pointer"}}>{s[1]}</button>
               );})}
             </div>
+
+            </div>
+
+            {/* 실속가순 안내 배너 */}
+            {sortBy==="smart" && (function(){
+              var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
+              return (
+                <div style={{background:"linear-gradient(135deg,#4c1d95,#7c3aed)",borderRadius:12,padding:"12px 14px",marginBottom:10,color:"#fff"}}>
+                  <div style={{fontWeight:700,fontSize:12,marginBottom:4}}>🚚 실속가순 — 배송비 포함 실질 최저가 정렬</div>
+                  {userSido
+                    ? <div style={{fontSize:11,opacity:0.9}}>
+                        📍 도착지: <b>{userSido}</b> · 각 시장에서 출발 기준 CJ대한통운 예상 배송비 포함<br/>
+                        <span style={{fontSize:10,opacity:0.75}}>예) 서울가락→{userSido} / 부산→{userSido} 배송비가 각각 다르게 적용됩니다</span>
+                      </div>
+                    : <div style={{fontSize:11,color:"#fde68a",fontWeight:700}}>
+                        ⚠️ MY 탭 → 사업장 지역 설정 시 정확한 배송비를 계산해드립니다
+                      </div>
+                  }
+                </div>
+              );
+            })()}
 
             {filtered.length===0
               ? <div style={{textAlign:"center",padding:"40px 0"}}>
@@ -2273,7 +2439,7 @@ function App() {
                 </div>
               : <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   {filtered.slice(0, 100).map(function(r, idx){
-                    return <RecordCard key={r.id} record={r} rank={idx+1} tradeData={tradeData} purchases={purchases} setPurchases={setPurchases} loginUser={loginUser}/>;
+                    return <RecordCard key={r.id} record={r} rank={idx+1} tradeData={tradeData} purchases={purchases} setPurchases={setPurchases} loginUser={loginUser} sortBy={sortBy}/>;
                   })}
                   {filtered.length > 100 && <div style={{textAlign:"center",padding:"12px",fontSize:12,color:"#888"}}>상위 100건 표시 중 · 검색어로 필터링하세요</div>}
                 </div>
