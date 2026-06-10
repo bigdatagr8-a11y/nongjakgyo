@@ -787,9 +787,17 @@ function RecordCard(props) {
                   {Object.keys(dealerGroups).map(function(no){
                     var trades = dealerGroups[no];
                     var info = getDealerInfo(no);
-                    var avgPrice = Math.round(trades.reduce(function(s,t){return s+(t.price||0);},0)/trades.length);
-                    var totalQty = trades.reduce(function(s,t){return s+(t.qty||0);},0);
-                    var totalWeight = trades.reduce(function(s,t){return s+(parseFloat(t.weight||0)*(t.qty||0));},0);
+                    var avgPrice = Math.round(trades.reduce(function(s,t){
+                      return s+(parseInt((t["단가"]||"").replace(/,/g,""))||0);
+                    },0)/trades.length);
+                    var totalQty = trades.reduce(function(s,t){
+                      return s+(parseInt((t["수량"]||"").replace(/,/g,""))||0);
+                    },0);
+                    var totalWeight = trades.reduce(function(s,t){
+                      var w = parseFloat(t["중량"]||0);
+                      var q = parseInt((t["수량"]||"0").replace(/,/g,""))||0;
+                      return s + w*q;
+                    },0);
                     return (
                       <div key={no} style={{border:"1px solid #bfdbfe",borderRadius:12,overflow:"hidden"}}>
                         {/* 중도매인 헤더 */}
@@ -829,32 +837,45 @@ function RecordCard(props) {
                             </thead>
                             <tbody>
                               {trades.map(function(t,i){
-                                var kgPerBox = parseFloat(t.weight||0);
-                                var kgPrice = (kgPerBox > 0 && t.price) ? Math.round(t.price / kgPerBox) : null;
-                                var gradeColor = {
-                                  "특":  {bg:"#fef9c3", color:"#854d0e"},
-                                  "상":  {bg:"#dbeafe", color:"#1e40af"},
-                                  "보통":{bg:"#f3f4f6", color:"#555"},
-                                  "1":   {bg:"#fef9c3", color:"#854d0e"},
-                                  "2":   {bg:"#dbeafe", color:"#1e40af"},
-                                  "3":   {bg:"#f3f4f6", color:"#555"},
-                                }[t.grade||""] || {bg:"#f3f4f6", color:"#555"};
+                                // tradeData는 한글 헤더 키로 저장됨
+                                var auctionTime = (t["경매시간"]||"").trim();
+                                var origin      = (t["산지명"]||"").trim();
+                                var grade       = (t["등급"]||"").trim();
+                                var size        = (t["크기"]||"").trim();
+                                var weight      = (t["중량"]||"").trim();   // 박스당 kg
+                                var qty         = (t["수량"]||"").trim();
+                                var price       = parseInt((t["단가"]||"").replace(/,/g,""))||0;
+                                var amount      = parseInt((t["금액"]||"").replace(/,/g,""))||0;
+                                var kgPerBox    = parseFloat(weight)||0;
+                                var kgPrice     = (kgPerBox > 0 && price > 0) ? Math.round(price / kgPerBox) : null;
+                                var gradeColor  = {
+                                  "특": {bg:"#fef9c3",color:"#854d0e"},
+                                  "상": {bg:"#dbeafe",color:"#1e40af"},
+                                  "보통":{bg:"#f3f4f6",color:"#555"},
+                                  "1":  {bg:"#fef9c3",color:"#854d0e"},
+                                  "2":  {bg:"#dbeafe",color:"#1e40af"},
+                                  "3":  {bg:"#f3f4f6",color:"#555"},
+                                  "4":  {bg:"#fce7f3",color:"#9d174d"},
+                                  "대": {bg:"#fef9c3",color:"#854d0e"},
+                                  "중": {bg:"#dbeafe",color:"#1e40af"},
+                                  "소": {bg:"#f3f4f6",color:"#555"},
+                                }[grade] || {bg:"#f3f4f6",color:"#555"};
                                 return (
-                                <tr key={i} style={{background:i%2===0?"#fff":"#f8faff",borderBottom:"1px solid #e8edf8",transition:"background 0.15s"}}
+                                <tr key={i} style={{background:i%2===0?"#fff":"#f8faff",borderBottom:"1px solid #e8edf8"}}
                                   onMouseEnter={function(e){e.currentTarget.style.background="#eff6ff";}}
                                   onMouseLeave={function(e){e.currentTarget.style.background=i%2===0?"#fff":"#f8faff";}}>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#64748b",fontSize:10,fontVariantNumeric:"tabular-nums"}}>{t.auctionTime||"-"}</td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:500}}>{t.origin||"-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#64748b",fontSize:10,fontVariantNumeric:"tabular-nums"}}>{auctionTime||"-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:500}}>{origin||"-"}</td>
                                   <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
-                                    {t.grade
-                                      ? <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:6,padding:"2px 7px",fontWeight:700,fontSize:10}}>{t.grade}</span>
+                                    {grade
+                                      ? <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:6,padding:"2px 7px",fontWeight:700,fontSize:10}}>{grade}</span>
                                       : <span style={{color:"#ccc"}}>-</span>}
                                   </td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#475569",fontSize:10}}>{t.size||"-"}</td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:600}}>{t.weight ? t.weight+"kg" : "-"}</td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b"}}>{t.qty ? t.qty+"개" : "-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#475569",fontSize:10}}>{size||"-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:600}}>{weight ? weight+"kg" : "-"}</td>
+                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b"}}>{qty ? qty+"개" : "-"}</td>
                                   <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
-                                    <span style={{color:G.mid,fontWeight:700}}>{t.price ? t.price.toLocaleString()+"원" : "-"}</span>
+                                    <span style={{color:G.mid,fontWeight:700}}>{price ? price.toLocaleString()+"원" : "-"}</span>
                                   </td>
                                   <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
                                     {kgPrice
@@ -863,7 +884,7 @@ function RecordCard(props) {
                                   </td>
                                   <td style={{padding:"6px 7px",whiteSpace:"nowrap"}}>
                                     {(function(){
-                                      var itemKey = no+"_"+(t.auctionTime||i);
+                                      var itemKey = no+"_"+(auctionTime||i);
                                       var pKey = no+"_"+itemKey;
                                       var isSold = purchases[pKey] && purchases[pKey].status === "완료";
                                       if(isSold) return (
