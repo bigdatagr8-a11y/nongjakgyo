@@ -1829,21 +1829,35 @@ function DealerMyPage(props) {
   var ats = useState(_ds.alarmSound||"1"); var alarmSound = ats[0]; var setAlarmSound = ats[1];
   var pubs = useState(_ds.phonePublic!==undefined?_ds.phonePublic:false); var phonePublic = pubs[0]; var setPhonePublic = pubs[1];
   var saved = useState(false); var isSaved = saved[0]; var setSaved = saved[1];
+  var dtab = useState("items"); var dealerTab = dtab[0]; var setDealerTab = dtab[1];
+
+  // 개별 거래건 공개/비공개 (tradeKey별)
+  var hiddenTrades = useState(_ds.hiddenTrades||{}); var hiddenMap = hiddenTrades[0]; var setHiddenMap = hiddenTrades[1];
 
   function playPreview(num) {
     try { var names = {"1":"작교1.wav","2":"작교2.wav","3":"작교3.m4a","4":"작교4.m4a"}; var a = new Audio("/sounds/"+names[num]); a.play(); } catch(e){}
   }
 
   function saveDealer() {
-    try { localStorage.setItem("agro_dealer_"+user.id, JSON.stringify({listedMap:listedMap, alarmSound:alarmSound, phonePublic:phonePublic})); } catch(e){}
+    try { localStorage.setItem("agro_dealer_"+user.id, JSON.stringify({listedMap:listedMap, alarmSound:alarmSound, phonePublic:phonePublic, hiddenTrades:hiddenMap})); } catch(e){}
     setSaved(true);
     setTimeout(function(){setSaved(false);}, 2000);
   }
 
+  function toggleHidden(key) {
+    var next = Object.assign({}, hiddenMap);
+    next[key] = !next[key];
+    setHiddenMap(next);
+    // 즉시 저장
+    try { localStorage.setItem("agro_dealer_"+user.id, JSON.stringify({listedMap:listedMap, alarmSound:alarmSound, phonePublic:phonePublic, hiddenTrades:next})); } catch(e){}
+  }
+
   // 내 낙찰번호로 거래실적 필터
   var myTrades = tradeData.filter(function(t){
-    var no = String(t["낙찰 중도매인"]||"").trim();
-    return no === String(user.dealerNo);
+    var raw = String(t["낙찰 중도매인"]||"").trim();
+    var m = raw.match(/^(\d+)/);
+    var no = m ? String(parseInt(m[1])) : raw;
+    return no === String(user.dealerNo) || raw === String(user.dealerNo);
   });
 
   // 품목별 그룹
@@ -1862,6 +1876,7 @@ function DealerMyPage(props) {
   }
 
   var listedItems = Object.keys(listedMap).filter(function(k){return listedMap[k];});
+  var hiddenCount = Object.keys(hiddenMap).filter(function(k){return hiddenMap[k];}).length;
 
   return (
     <div>
@@ -1870,52 +1885,91 @@ function DealerMyPage(props) {
         <div style={{fontWeight:900,fontSize:18}}>🏪 중도매인 #{user.dealerNo}</div>
         <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:4}}>대전 노은시장 · 당일 낙찰 품목</div>
         {listedItems.length > 0 && <div style={{marginTop:8,background:"rgba(74,222,128,0.2)",borderRadius:10,padding:"6px 10px",fontSize:11,color:"#4ade80",fontWeight:700}}>
-          📢 {listedItems.length}개 품목 검색 노출 중
+          📢 {listedItems.length}개 품목 노출 중 {hiddenCount > 0 ? "· "+hiddenCount+"건 비공개" : ""}
         </div>}
       </div>
 
-      {myTrades.length === 0 && (
-        <div style={{textAlign:"center",padding:"40px 0",background:"#fff",borderRadius:16,border:"1px solid #e5e7eb"}}>
-          <div style={{fontSize:32,marginBottom:10}}>📋</div>
-          <div style={{fontSize:13,color:"#888"}}>낙찰번호 #{user.dealerNo}의 거래실적이 없습니다</div>
-        </div>
-      )}
+      {/* 탭 */}
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["items","📦 오늘 경매 상품"],["settings","⚙️ 설정"]].map(function(t){
+          var on = dealerTab===t[0];
+          return <button key={t[0]} onClick={function(){setDealerTab(t[0]);}}
+            style={{flex:1,padding:"10px 0",background:on?"linear-gradient(135deg,#0d2b1a,#40916c)":"#fff",color:on?"#fff":"#555",border:"1.5px solid "+(on?"#2d6a4f":"#e5e7eb"),borderRadius:12,fontSize:13,fontWeight:on?700:400,cursor:"pointer"}}>
+            {t[1]}
+          </button>;
+        })}
+      </div>
 
-      {Object.keys(grouped).length > 0 && (
-        <div>
-          <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:10}}>📦 내 낙찰 품목 — 노출 선택</div>
+      {/* 오늘 경매 상품 탭 */}
+      {dealerTab==="items" && <div>
+        {myTrades.length === 0 && (
+          <div style={{textAlign:"center",padding:"40px 0",background:"#fff",borderRadius:16,border:"1px solid #e5e7eb"}}>
+            <div style={{fontSize:32,marginBottom:10}}>📋</div>
+            <div style={{fontSize:13,color:"#888"}}>낙찰번호 #{user.dealerNo}의 거래실적이 없습니다</div>
+          </div>
+        )}
+
+        {Object.keys(grouped).length > 0 && <div>
+          <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:10}}>📦 오늘 낙찰 상품 — 건별 공개 설정</div>
+          <div style={{fontSize:11,color:"#888",marginBottom:12}}>각 거래건을 구매자에게 공개할지 선택하세요</div>
           {Object.keys(grouped).map(function(itemName){
             var trades = grouped[itemName];
-            var isOn = !!listedMap[itemName];
-            var totalQty = trades.reduce(function(s,t){return s+(parseInt(t["수량"])||0);},0);
-            var avgPrice = Math.round(trades.reduce(function(s,t){return s+(parseInt(t["단가"])||0);},0)/trades.length);
-            var grade = (trades[0]["등급"]||"").trim();
+            var isItemOn = !!listedMap[itemName];
             return (
-              <div key={itemName} style={{background:"#fff",borderRadius:14,padding:"14px",marginBottom:10,border:"2px solid "+(isOn?"#4ade80":"#e5e7eb"),boxShadow:isOn?"0 2px 12px rgba(74,222,128,0.15)":"none"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div key={itemName} style={{background:"#fff",borderRadius:14,marginBottom:12,border:"1px solid #e5e7eb",overflow:"hidden"}}>
+                {/* 품목 헤더 */}
+                <div style={{background:isItemOn?"linear-gradient(135deg,#0d2b1a,#1b4332)":"#f8fffe",padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:22}}>{getEmoji(itemName)}</span>
+                    <span style={{fontSize:20}}>{getEmoji(itemName)}</span>
                     <div>
-                      <div style={{fontWeight:800,fontSize:14,color:"#0d1f15"}}>{itemName}</div>
-                      <div style={{fontSize:11,color:"#888"}}>{trades.length}건 · 총 {totalQty}개 · 평균 {avgPrice.toLocaleString()}원</div>
+                      <div style={{fontWeight:800,fontSize:13,color:isItemOn?"#fff":"#0d1f15"}}>{itemName}</div>
+                      <div style={{fontSize:10,color:isItemOn?"rgba(255,255,255,0.6)":"#888"}}>{trades.length}건</div>
                     </div>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    {grade && <span style={{background:"#fef9c3",color:"#854d0e",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 8px"}}>{grade}등급</span>}
-                    <button onClick={function(){toggleListed(itemName);}} style={{background:isOn?"#0d2b1a":"#f3f4f6",color:isOn?"#4ade80":"#888",border:"none",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                      {isOn ? "✅ 노출중" : "노출하기"}
-                    </button>
-                  </div>
+                  <button onClick={function(){toggleListed(itemName);}}
+                    style={{background:isItemOn?"rgba(74,222,128,0.2)":"#f3f4f6",color:isItemOn?"#4ade80":"#888",border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                    {isItemOn ? "✅ 품목 노출중" : "품목 노출하기"}
+                  </button>
                 </div>
-                {isOn && <div style={{background:"#f0fdf4",borderRadius:8,padding:"6px 10px",fontSize:11,color:G.mid,fontWeight:600}}>
-                  🔍 경락 검색에서 이 품목이 상단에 표시됩니다
-                </div>}
+                {/* 개별 거래건 */}
+                {trades.map(function(t, i){
+                  var tradeKey = itemName+"_"+(t["경매시간"]||i);
+                  var isHidden = !!hiddenMap[tradeKey];
+                  var grade = (t["등급"]||"").trim();
+                  var price = parseInt((t["단가"]||"0").replace(/,/g,""))||0;
+                  var qty = (t["수량"]||"").trim();
+                  var origin = (t["산지명"]||"").trim();
+                  var weight = (t["중량"]||"").trim();
+                  var time = (t["경매시간"]||"").trim();
+                  return (
+                    <div key={i} style={{padding:"10px 14px",borderTop:"1px solid #f0f0f0",background:isHidden?"#fef2f2":"#fff",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div>
+                        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:4}}>
+                          {grade && <span style={{background:"#fef9c3",color:"#854d0e",fontSize:10,fontWeight:700,borderRadius:6,padding:"1px 7px"}}>{grade}등급</span>}
+                          {origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,borderRadius:6,padding:"1px 7px"}}>📍{origin}</span>}
+                          {weight && <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,borderRadius:6,padding:"1px 7px"}}>📦{fmtKg(weight)}kg</span>}
+                          <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:6,padding:"1px 7px"}}>{qty}개</span>
+                        </div>
+                        <div style={{fontSize:12,fontWeight:700,color:G.mid}}>{price.toLocaleString()}원 <span style={{fontSize:10,color:"#aaa",fontWeight:400}}>· {time}</span></div>
+                      </div>
+                      <button onClick={function(){toggleHidden(tradeKey);}}
+                        style={{background:isHidden?"#fee2e2":"#f0fdf4",color:isHidden?"#991b1b":"#166534",border:"none",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
+                        {isHidden ? "🔒 비공개" : "🟢 공개"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
-        </div>
-      )}
-      <div style={{background:"#fff",borderRadius:16,padding:"18px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+          <button onClick={saveDealer} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",marginBottom:12}}>
+            {isSaved ? "✅ 저장되었습니다" : "설정 저장하기"}
+          </button>
+        </div>}
+      </div>}
+
+      {/* 설정 탭 */}
+      {dealerTab==="settings" && <div>
         <div style={{fontWeight:800,fontSize:14,color:G.mid,marginBottom:4}}>📞 연락처 공개 설정</div>
         <div style={{fontSize:11,color:"#888",marginBottom:14}}>구매자가 경락 카드에서 내 전화번호를 볼 수 있도록 허용합니다</div>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px",borderRadius:12,border:"2px solid "+(phonePublic?"#4ade80":"#e5e7eb"),background:phonePublic?"#f0fdf4":"#f9fafb",cursor:"pointer"}} onClick={function(){setPhonePublic(!phonePublic);}}>
@@ -1966,8 +2020,10 @@ function DealerMyPage(props) {
       <button onClick={saveDealer} style={{width:"100%",background:isSaved?"#059669":"linear-gradient(135deg,#0d2b1a,#40916c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer",transition:"background 0.3s",marginBottom:10}}>
         {isSaved ? "✅ 저장되었습니다" : "저장하기"}
       </button>
-
       <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:8}}>로그아웃</button>
+      </div>}
+
+      {dealerTab !== "settings" && <button onClick={onLogout} style={{width:"100%",background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:8}}>로그아웃</button>}
     </div>
   );
 }
