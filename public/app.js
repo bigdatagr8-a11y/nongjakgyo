@@ -299,10 +299,10 @@ function makeMockData() {
 
 // CSV 파싱 (노은시장 실제 데이터)
 function parseCSV(csvText) {
+  // 경락 시트 구조: 경매일시 / 도매시장 / 법인 / 품목 / 품종 / 산지 / 수량 / 단위 / 경락가
   var lines = csvText.trim().split("\n");
   if(lines.length < 2) return [];
 
-  // 헤더로 컬럼 인덱스 자동 매핑 (시트 컬럼 순서 변경에도 안전)
   var rawHeaders = lines[0].split(",").map(function(h){ return h.trim().replace(/"/g,""); });
   function col(row, name) {
     var idx = rawHeaders.indexOf(name);
@@ -322,28 +322,21 @@ function parseCSV(csvText) {
     }
     cols.push(cur.trim());
 
-    // 헤더 기반으로 각 컬럼 읽기
-    // 시트 구조: 경매일자/번호/NO/출하자/산지명/출하처/품목/중량/등급/크기/수량/단가/금액/낙찰 중도매인/구분/경매시간/매매일자/응찰단가/품목명
-    var dateStr      = col(cols, "경매일자").replace(/\s.*$/,"");  // 날짜만
-    var itemName     = (col(cols, "품목명") || col(cols, "품목")).trim();
-    var origin       = col(cols, "산지명");
-    var corpName     = col(cols, "출하처");
-    var shipperName  = col(cols, "출하자");
-    var weight       = col(cols, "중량");   // kg
-    var grade        = col(cols, "등급");
-    var size         = col(cols, "크기");
-    var qty          = parseInt(col(cols, "수량").replace(/,/g,"")) || 0;
-    var price        = parseInt(col(cols, "단가").replace(/,/g,"")) || 0;
-    var amount       = parseInt(col(cols, "금액").replace(/,/g,"")) || 0;
-    var bidder       = col(cols, "낙찰 중도매인");
-    var auctionTime  = col(cols, "경매시간");
+    var datetimeStr = col(cols, "경매일시");
+    var dateStr     = datetimeStr.split(" ")[0];
+    var mktName     = col(cols, "도매시장");
+    var corpName    = col(cols, "법인");
+    var itemName    = col(cols, "품목");
+    var variety     = col(cols, "품종");
+    var origin      = col(cols, "산지");
+    var qty         = parseInt(col(cols, "수량").replace(/,/g,"")) || 0;
+    var unit        = col(cols, "단위");
+    var price       = parseInt(col(cols, "경락가").replace(/,/g,"")) || 0;
 
-    // 소계/합계 행 또는 유효하지 않은 행 제외
-    if(!itemName || itemName.includes("소계") || itemName.includes("합계")) continue;
-    if(!price) continue;
+    if(!itemName || !price) continue;
 
-    var market = {id:8, name:"대전 노은시장", region:"대전", sheetName:"대전노은", phone:"", corp:"중부청과"};
-    var fullName = itemName;
+    var market   = getMarket(mktName);
+    var fullName = variety && variety !== itemName ? itemName+"("+variety+")" : itemName;
 
     records.push({
       id: i,
@@ -351,23 +344,19 @@ function parseCSV(csvText) {
       market: market,
       itemName: itemName,
       fullName: fullName,
-      variety: size || "",
+      variety: variety,
       origin: origin,
       qty: qty,
-      unit: weight ? weight+"kg" : "개",
-      weight: weight,
-      size: size,
+      unit: unit || "개",
       price: price,
-      amount: amount,
-      corp: corpName || "중부청과",
+      corp: corpName,
       emoji: getEmoji(itemName),
       category: getCategory(itemName),
       isMock: false,
-      bidder: bidder,
-      grade: grade,
-      shipperName: shipperName,
+      bidder: "",
+      grade: "",
+      shipperName: "",
       shipperPhone: "",
-      auctionTime: auctionTime,
     });
   }
   return records;
@@ -1472,17 +1461,16 @@ function App() {
         var csv = await res.text();
         if(cancelled) return;
         var liveRows = parseCSV(csv);
-        // 시트 실제 데이터만 사용 - 가상 데이터 없음
+        // 전체 시장 데이터 사용 (노은 포함)
         var liveNoeun = liveRows.filter(function(r){ return r.market.id === 8; });
         var mockNoeun = mockData.filter(function(r){ return r.market.id === 8; });
         var noeunRows = liveNoeun.length > 0 ? liveNoeun : mockNoeun;
         var liveOthers = liveRows.filter(function(r){ return r.market.id !== 8; });
-        // 시트에 있는 것만 표시 (가상 데이터 보완 없음)
         var allRows = noeunRows.concat(liveOthers);
-        // 완전 동일한 행 중복 제거 (같은 시장+품목+가격+수량+산지)
+        // 중복 제거: 같은 경매일시+시장+법인+품목+경락가+산지 조합만 제거 (수량 다른 건 별도 행)
         var seen = {};
         var combined = allRows.filter(function(r){
-          var key = r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin+"_"+r.date;
+          var key = r.date+"_"+r.market.id+"_"+r.corp+"_"+r.itemName+"_"+r.price+"_"+r.qty+"_"+r.origin;
           if(seen[key]) return false;
           seen[key] = true;
           return true;
