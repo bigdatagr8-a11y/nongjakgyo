@@ -9,6 +9,24 @@ function getKST(offset) {
 }
 var TODAY = getKST(0), YESTERDAY = getKST(-1);
 
+
+// 소수점 불필요한 0 제거 (6.000 → 6, 7.500 → 7.5)
+function fmtKg(val) {
+  if(!val && val !== 0) return val;
+  var s = String(val).replace(/kg.*/i, "").trim();
+  var n = parseFloat(s);
+  if(isNaN(n)) return val;
+  return n % 1 === 0 ? String(Math.round(n)) : String(parseFloat(n.toFixed(2)));
+}
+function fmtUnit(unit) {
+  if(!unit) return unit;
+  return unit.replace(/([\d.]+)kg/gi, function(m, num) {
+    var n = parseFloat(num);
+    if(isNaN(n)) return m;
+    var clean = n % 1 === 0 ? String(Math.round(n)) : String(parseFloat(n.toFixed(2)));
+    return clean + "kg";
+  });
+}
 var G = {dark:"#0d2b1a",mid:"#1b4332",main:"#2d6a4f",light:"#40916c",pale:"#d1fae5",bg:"#f0fdf4",border:"#bbf7d0"};
 
 // ── 배송비 계산 함수 (출발지 시장 → 도착지 구매자) ──
@@ -713,7 +731,9 @@ function RecordCard(props) {
           </div>
           {r.market.id !== 8 && <div style={{textAlign:"right"}}>
             <div style={{fontWeight:900,fontSize:19,color:G.mid}}>{displayPrice.toLocaleString()}<span style={{fontSize:12,fontWeight:500}}>원</span></div>
-            <div style={{fontSize:10,color:"#888",marginTop:1,fontWeight:600}}>/ {displayUnit}</div>
+            <div style={{fontSize:10,color:"#888",marginTop:1,fontWeight:500}}>
+              {displayUnit ? "단위 "+fmtUnit(displayUnit)+" · 박스당" : "박스당"}
+            </div>
             {shippingInfo && <div style={{marginTop:4,textAlign:"right"}}>
               <div style={{fontSize:10,color:"#64748b"}}>🚚 {shippingInfo.fromSido}→{shippingInfo.toSido} {shippingInfo.zoneLabel} +{shippingInfo.extra.toLocaleString()}원</div>
               <div style={{fontSize:11,fontWeight:900,color:"#7c3aed",marginTop:1}}>실속가 {(displayPrice+shippingInfo.total).toLocaleString()}원</div>
@@ -724,7 +744,7 @@ function RecordCard(props) {
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
           {r.market.id !== 8 && r.qty > 0 && (
             <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>
-              📦 {r.qty}개 {r.unit ? "/ "+r.unit : ""}
+              📦 {r.qty}개 {r.unit ? "/ "+fmtUnit(r.unit) : ""}
             </span>
           )}
           {r.origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📍 {r.origin}</span>}
@@ -843,13 +863,13 @@ function RecordCard(props) {
                         {origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📍 {origin}</span>}
                         {grade && <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:20,padding:"2px 9px",fontWeight:700,fontSize:10}}>{grade}등급</span>}
                         {size && size!=="0" && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"2px 9px"}}>{size}</span>}
-                        {weight && <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📦 {weight}kg/박스</span>}
+                        {weight && <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📦 {fmtKg(weight)}kg/박스</span>}
                         {qty && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"2px 9px"}}>{qty}개</span>}
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <div>
                           <span style={{fontWeight:900,fontSize:16,color:G.mid}}>{price ? price.toLocaleString()+"원" : "-"}</span>
-                          <span style={{fontSize:10,color:"#aaa",marginLeft:4}}>/ {weight}kg 단위</span>
+                          <span style={{fontSize:10,color:"#aaa",marginLeft:4}}>/ {fmtKg(weight)}kg 단위</span>
                           {kgPrice && <div style={{fontSize:11,color:"#059669",fontWeight:600,marginTop:2}}>kg당 {kgPrice.toLocaleString()}원</div>}
                           {sortBy==="smart" && price > 0 && (function(){
                             var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
