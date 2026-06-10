@@ -639,37 +639,38 @@ function RecordCard(props) {
   var pp = useState(false); var payDone = pp[0]; var setPayDone = pp[1];
   var pmt = useState(""); var payMethod = pmt[0]; var setPayMethod = pmt[1];
   var buyQtyS = useState(1); var buyQty = buyQtyS[0]; var setBuyQty = buyQtyS[1];
+  // 장바구니 수량 선택 모달
+  var cms = useState(null); var cartModal = cms[0]; var setCartModal = cms[1];
+  var cqty = useState(1); var cartQty = cqty[0]; var setCartQty = cqty[1];
+  // 장바구니 카운트 (헤더 뱃지용)
+  var ccs = useState(function(){ try { return JSON.parse(localStorage.getItem("agro_cart_"+(loginUser&&loginUser.id||"guest"))||"[]").length; } catch(e){ return 0; } });
+  var cartCount = ccs[0]; var setCartCount = ccs[1];
 
-  // 장바구니 담기 함수
-  function addToCart(t, no, itemKey) {
+  function addToCart(t, no, itemKey, selectedQty) {
     try {
       var uid = loginUser ? loginUser.id : "guest";
       var cart = JSON.parse(localStorage.getItem("agro_cart_"+uid)||"[]");
       var info = getDealerInfo(no);
       var price = parseInt((t["단가"]||"0").replace(/,/g,""))||0;
-      var qty = parseInt((t["수량"]||"1").replace(/,/g,""))||1;
+      var qty = selectedQty || 1;
       var weight = (t["중량"]||"").trim();
       var deposit = Math.max(5000, Math.round(price * qty * 0.1 / 1000) * 1000);
-      // 중복 체크
       var exists = cart.find(function(c){ return c.itemKey === itemKey; });
       if(exists){ alert("이미 장바구니에 담긴 상품입니다."); return; }
       cart.push({
-        itemKey: itemKey,
-        no: no,
-        dealerName: info.name,
-        dealerPhone: info.phone,
+        itemKey: itemKey, no: no,
+        dealerName: info.name, dealerPhone: info.phone,
         itemName: (t["품목명"]||"").trim(),
         grade: (t["등급"]||"").trim(),
         origin: (t["산지명"]||"").trim(),
-        weight: weight,
-        qty: qty,
-        price: price,
-        deposit: deposit,
-        total: price * qty,
+        weight: weight, qty: qty, price: price,
+        deposit: deposit, total: price * qty,
         addedAt: new Date().toLocaleDateString("ko-KR"),
       });
       localStorage.setItem("agro_cart_"+uid, JSON.stringify(cart));
-      alert("🧺 장바구니에 담겼습니다!\n마이페이지에서 확인하세요.");
+      setCartCount(cart.length);
+      setCartModal(null);
+      alert("🧺 장바구니에 담겼습니다!");
     } catch(e){ alert("오류가 발생했습니다."); }
   }
 
@@ -938,7 +939,8 @@ function RecordCard(props) {
                                 }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
                                 <button onClick={function(){
                                   if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
-                                  addToCart(t, no, itemKey);
+                                  setCartQty(1);
+                                  setCartModal({t:t, no:no, itemKey:itemKey, maxQty:parseInt(qty)||1});
                                 }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
                                 <button onClick={function(){ window._chatDealer={no:dealerPrivate?"익명":no, tradeRow:t, chatType:"inquiry", anonymous:dealerPrivate}; setShowChat(true); }}
                                   style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
@@ -969,7 +971,7 @@ function RecordCard(props) {
               }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
               <button onClick={function(){
                 if(!loginUser){ alert("로그인이 필요한 기능입니다.\n로그인 후 이용해주세요."); return; }
-                // AT 카드 장바구니 담기
+                // AT 카드 장바구니 담기 - 수량 선택 모달
                 try {
                   var uid = loginUser.id;
                   var cart = JSON.parse(localStorage.getItem("agro_cart_"+uid)||"[]");
@@ -977,12 +979,14 @@ function RecordCard(props) {
                   if(cart.find(function(c){return c.itemKey===itemKey;})){
                     alert("이미 장바구니에 담긴 상품입니다."); return;
                   }
+                  var selectedQty = parseInt(prompt("구매 수량을 입력하세요 (최대 "+r.qty+"개)", "1"))||1;
+                  if(selectedQty < 1) return;
+                  if(selectedQty > r.qty) selectedQty = r.qty;
                   var price = r.price||0;
-                  var qty = r.qty||1;
-                  var deposit = Math.max(5000, Math.round(price*qty*0.1/1000)*1000);
-                  cart.push({itemKey:itemKey, no:"corp", dealerName:r.corp||"법인", dealerPhone:r.market.phone||"", itemName:r.itemName, grade:r.grade||"", origin:r.origin||"", weight:r.unit||"", qty:qty, price:price, deposit:deposit, total:price*qty, addedAt:new Date().toLocaleDateString("ko-KR"), market:r.market.name});
+                  var deposit = Math.max(5000, Math.round(price*selectedQty*0.1/1000)*1000);
+                  cart.push({itemKey:itemKey, no:"corp", dealerName:r.corp||"법인", dealerPhone:r.market.phone||"", itemName:r.itemName, grade:r.grade||"", origin:r.origin||"", weight:r.unit||"", qty:selectedQty, price:price, deposit:deposit, total:price*selectedQty, addedAt:new Date().toLocaleDateString("ko-KR"), market:r.market.name});
                   localStorage.setItem("agro_cart_"+uid, JSON.stringify(cart));
-                  alert("🧺 장바구니에 담겼습니다!\n마이페이지에서 확인하세요.");
+                  alert("🧺 장바구니에 담겼습니다!");
                 } catch(e){ alert("오류가 발생했습니다."); }
               }} style={{background:"#fff7ed",color:"#c2410c",border:"1px solid #fed7aa",borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🧺 담기</button>
               <button onClick={function(){
@@ -994,6 +998,59 @@ function RecordCard(props) {
         </div>
 
         {showChat && <ChatModal record={r} tradeRow={window._chatDealer ? window._chatDealer.tradeRow : chatTradeRow} onClose={function(){setShowChat(false); window._chatDealer=null;}}/>}
+
+        {/* 장바구니 수량 선택 모달 */}
+        {cartModal && (function(){
+          var ct = cartModal.t;
+          var cPrice = parseInt((ct["단가"]||"0").replace(/,/g,""))||0;
+          var cMaxQty = cartModal.maxQty||1;
+          var cSafeQty = Math.max(1, Math.min(cartQty, cMaxQty));
+          var cTotal = cPrice * cSafeQty;
+          var cDeposit = Math.max(5000, Math.round(cTotal * 0.1 / 1000) * 1000);
+          var cInfo = getDealerInfo(cartModal.no);
+          return (
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={function(e){if(e.target===e.currentTarget)setCartModal(null);}}>
+              <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:380,overflow:"hidden"}}>
+                <div style={{background:"linear-gradient(135deg,#9a3412,#c2410c)",padding:"14px 16px"}}>
+                  <div style={{color:"#fed7aa",fontSize:10,fontWeight:700,letterSpacing:2}}>🧺 장바구니 담기</div>
+                  <div style={{color:"#fff",fontWeight:800,fontSize:15,marginTop:4}}>{(ct["품목명"]||"").trim()} {(ct["등급"]||"")&&"· "+(ct["등급"]||"").trim()+"등급"}</div>
+                  <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>중도매인 {cInfo.name} · 대전 노은시장</div>
+                </div>
+                <div style={{padding:"16px"}}>
+                  <div style={{background:"#f9fafb",borderRadius:12,padding:"14px",marginBottom:14}}>
+                    {[["산지",(ct["산지명"]||"").trim()||"-"],["단가",cPrice.toLocaleString()+"원"]].map(function(row){return(
+                      <div key={row[0]} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #e5e7eb",fontSize:13}}>
+                        <span style={{color:"#888"}}>{row[0]}</span>
+                        <span style={{fontWeight:500}}>{row[1]}</span>
+                      </div>
+                    );})}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #e5e7eb"}}>
+                      <span style={{color:"#888",fontSize:13}}>수량</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <button onClick={function(){setCartQty(function(q){return Math.max(1,q-1);});}} style={{width:28,height:28,borderRadius:"50%",border:"1.5px solid #d1d5db",background:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                        <span style={{fontSize:15,fontWeight:700,minWidth:32,textAlign:"center"}}>{cSafeQty}개</span>
+                        <button onClick={function(){setCartQty(function(q){return Math.min(cMaxQty,q+1);});}} style={{width:28,height:28,borderRadius:"50%",border:"1.5px solid #d1d5db",background:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                        <span style={{fontSize:10,color:"#aaa"}}>/ 최대 {cMaxQty}개</span>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",fontSize:13}}>
+                      <span style={{color:"#888"}}>총 거래금액</span>
+                      <span style={{fontWeight:900,color:"#1e40af",fontSize:14}}>{cTotal.toLocaleString()}원</span>
+                    </div>
+                  </div>
+                  <div style={{background:"#fff7ed",border:"1.5px solid #fed7aa",borderRadius:12,padding:"12px",marginBottom:14,fontSize:11,color:"#92400e"}}>
+                    🧺 장바구니에 담으면 마이페이지에서 한번에 결제할 수 있어요.<br/>
+                    보증금 <b style={{color:"#c2410c"}}>{cDeposit.toLocaleString()}원</b>이 결제 시 차감됩니다.
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={function(){setCartModal(null);}} style={{flex:1,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>취소</button>
+                    <button onClick={function(){addToCart(ct, cartModal.no, cartModal.itemKey, cSafeQty);}} style={{flex:2,background:"linear-gradient(135deg,#9a3412,#c2410c)",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:900,cursor:"pointer"}}>🧺 {cSafeQty}개 담기</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {payModal && (function(){
           var t = payModal.tradeRow;
           var isAT = payModal.isAT;
@@ -2235,6 +2292,7 @@ function App() {
   var m1 = useState(""); var mapRegion = m1[0]; var setMapRegion = m1[1];
   var l1 = useState(null); var loginUser = l1[0]; var setLoginUser = l1[1];
   var l2 = useState(false); var showLogin = l2[0]; var setShowLogin = l2[1];
+  var l3 = useState(false); var showCart = l3[0]; var setShowCart = l3[1];
   var p1 = useState({}); var purchases = p1[0]; var setPurchases = p1[1];
   var pv1 = useState([]); var prevData = pv1[0]; var setPrevData = pv1[1];
 
@@ -2590,24 +2648,25 @@ function App() {
                   <span style={{background:"rgba(239,68,68,0.2)",color:"#fca5a5",fontSize:10,fontWeight:700,borderRadius:20,padding:"2px 10px"}}>🔴 연결 오류 · 재시도 중</span>
                 </div>}
               </div>
-              <div style={{marginTop:4,display:"flex",gap:6}}>
-                {loginUser && loginUser.role==="buyer" && (function(){
-                  var cartCount = 0;
-                  try { cartCount = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]").length; } catch(e){}
-                  return (
-                    <button onClick={function(){setTab("mypage");}} style={{background:"rgba(255,165,0,0.2)",border:"1px solid rgba(255,165,0,0.4)",color:"#fed7aa",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer",position:"relative"}}>
-                      🧺 장바구니 {cartCount > 0 ? <span style={{background:"#c2410c",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:10,fontWeight:900}}>{cartCount}</span> : ""}
-                    </button>
-                  );
-                })()}
+              <div style={{marginTop:4,display:"flex",gap:6,alignItems:"center"}}>
                 {loginUser
-                  ? <button onClick={function(){setTab("mypage");}} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                  ? <button onClick={function(){setTab("mypage");setShowCart(false);}} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
                       {loginUser.role==="dealer"?"🏪":"🛒"} 마이페이지
                     </button>
                   : <button onClick={function(){setShowLogin(true);}} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
                       🔐 로그인
                     </button>
                 }
+                {loginUser && loginUser.role==="buyer" && (function(){
+                  var cartCount = 0;
+                  try { cartCount = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]").length; } catch(e){}
+                  return (
+                    <button onClick={function(){setShowCart(true);}} style={{background:showCart?"#FEE500":"rgba(255,165,0,0.25)",border:"1px solid rgba(255,165,0,0.5)",color:showCart?"#3A1D1D":"#fed7aa",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                      🧺
+                      {cartCount > 0 && <span style={{background:"#c2410c",color:"#fff",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:900}}>{cartCount}</span>}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -2805,6 +2864,127 @@ function App() {
         )}
 
       </div>
+      {showCart && loginUser && loginUser.role==="buyer" && (function(){
+        var cart = [];
+        try { cart = JSON.parse(localStorage.getItem("agro_cart_"+loginUser.id)||"[]"); } catch(e){}
+        var cartItems2 = useState(cart); var cartList = cartItems2[0]; var setCartList = cartItems2[1];
+        var cpmt3 = useState(""); var cartPM = cpmt3[0]; var setCartPM = cpmt3[1];
+        var cpd = useState(false); var cartDone = cpd[0]; var setCartDone = cpd[1];
+        var bal = parseInt(localStorage.getItem("agro_balance_"+loginUser.id)||"0");
+        var totalDep = cartList.reduce(function(s,c){return s+(c.deposit||0);},0);
+        var totalAmt = cartList.reduce(function(s,c){return s+(c.total||0);},0);
+
+        function removeItem(key){
+          var next = cartList.filter(function(c){return c.itemKey!==key;});
+          setCartList(next);
+          try { localStorage.setItem("agro_cart_"+loginUser.id, JSON.stringify(next)); } catch(e){}
+        }
+
+        function checkout(){
+          if(!cartPM){alert("결제 수단을 선택해주세요.");return;}
+          if(cartPM==="balance"&&bal<totalDep){alert("예치금 부족\n잔액: "+bal.toLocaleString()+"원\n필요: "+totalDep.toLocaleString()+"원");return;}
+          if(cartPM==="balance"){
+            try{localStorage.setItem("agro_balance_"+loginUser.id, String(bal-totalDep));}catch(e){}
+          }
+          // 구매내역 저장
+          try{
+            var existing = JSON.parse(localStorage.getItem("agro_purchase_"+loginUser.id)||"[]");
+            cartList.forEach(function(c){
+              existing.push({key:c.itemKey,itemName:c.itemName,grade:c.grade,origin:c.origin,price:c.price,qty:c.qty,deposit:c.deposit,total:c.total,payMethod:cartPM,date:new Date().toLocaleDateString("ko-KR"),dealerName:c.dealerName});
+            });
+            localStorage.setItem("agro_purchase_"+loginUser.id, JSON.stringify(existing));
+          }catch(e){}
+          // 판매완료 처리 (purchases state 업데이트)
+          setPurchases(function(prev){
+            var n = Object.assign({}, prev);
+            cartList.forEach(function(c){
+              n[c.itemKey] = {status:"완료", deposit:c.deposit, total:c.total, payMethod:cartPM};
+            });
+            return n;
+          });
+          setCartList([]);
+          setCartCount(0);
+          try{localStorage.setItem("agro_cart_"+loginUser.id,"[]");}catch(e){}
+          setCartDone(true);
+        }
+
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:9999,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={function(e){if(e.target===e.currentTarget)setShowCart(false);}}>
+            <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:600,maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
+              <div style={{background:"linear-gradient(135deg,#9a3412,#c2410c)",borderRadius:"20px 20px 0 0",padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{color:"#fed7aa",fontSize:10,fontWeight:700,letterSpacing:2}}>🧺 장바구니</div>
+                  <div style={{color:"#fff",fontWeight:800,fontSize:15,marginTop:2}}>{cartList.length}개 상품</div>
+                </div>
+                <button onClick={function(){setShowCart(false);}} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:"50%",width:30,height:30,fontSize:16,cursor:"pointer"}}>✕</button>
+              </div>
+              <div style={{overflowY:"auto",padding:"16px",flex:1}}>
+                {cartDone ? (
+                  <div style={{textAlign:"center",padding:"40px 0"}}>
+                    <div style={{fontSize:48,marginBottom:12}}>✅</div>
+                    <div style={{fontWeight:800,fontSize:16,color:"#c2410c"}}>결제 완료!</div>
+                    <div style={{fontSize:12,color:"#888",marginTop:4}}>마이페이지에서 예약 내역을 확인하세요</div>
+                    <button onClick={function(){setShowCart(false);setCartDone(false);}} style={{marginTop:16,background:"#f3f4f6",color:"#555",border:"none",borderRadius:12,padding:"10px 24px",fontSize:13,fontWeight:700,cursor:"pointer"}}>닫기</button>
+                  </div>
+                ) : cartList.length === 0 ? (
+                  <div style={{textAlign:"center",padding:"40px 0"}}>
+                    <div style={{fontSize:48,marginBottom:12}}>🧺</div>
+                    <div style={{fontSize:14,color:"#888"}}>장바구니가 비어있습니다</div>
+                  </div>
+                ) : <>
+                  {cartList.map(function(c){
+                    return (
+                      <div key={c.itemKey} style={{background:"#fff7ed",borderRadius:12,padding:"12px",marginBottom:8,border:"1px solid #fed7aa"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                          <div>
+                            <span style={{fontWeight:700,fontSize:13}}>{c.itemName}</span>
+                            {c.grade && <span style={{background:"#fef9c3",color:"#854d0e",fontSize:10,fontWeight:700,borderRadius:6,padding:"1px 6px",marginLeft:5}}>{c.grade}</span>}
+                          </div>
+                          <button onClick={function(){removeItem(c.itemKey);}} style={{background:"none",border:"none",color:"#aaa",fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
+                        </div>
+                        <div style={{fontSize:11,color:"#666",marginBottom:6}}>{c.origin} · {c.qty}개 · {c.dealerName}{c.market?" · "+c.market:""}</div>
+                        <div style={{display:"flex",justifyContent:"space-between"}}>
+                          <span style={{fontSize:12,color:"#888"}}>보증금 <b style={{color:"#c2410c"}}>{(c.deposit||0).toLocaleString()}원</b></span>
+                          <span style={{fontSize:11,color:"#aaa"}}>총 {(c.total||0).toLocaleString()}원</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div style={{background:"#f9fafb",borderRadius:12,padding:"14px",marginBottom:12,border:"1px solid #e5e7eb"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                      <span style={{fontSize:13,color:"#555"}}>총 보증금</span>
+                      <span style={{fontSize:16,fontWeight:900,color:"#c2410c"}}>{totalDep.toLocaleString()}원</span>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between"}}>
+                      <span style={{fontSize:11,color:"#aaa"}}>수령 시 잔금</span>
+                      <span style={{fontSize:12,color:"#888"}}>{(totalAmt-totalDep).toLocaleString()}원</span>
+                    </div>
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:8}}>결제 수단</div>
+                    {[["balance","💰 예치금 결제"],["card","💳 카드결제"],["kakao","🟡 카카오페이"],["transfer","🏦 계좌이체"]].map(function(pm){
+                      var sel = cartPM===pm[0];
+                      var notEnough = pm[0]==="balance" && bal<totalDep;
+                      return <div key={pm[0]} onClick={function(){if(!notEnough)setCartPM(pm[0]);}}
+                        style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:8,border:"1.5px solid "+(sel?"#c2410c":"#e5e7eb"),marginBottom:6,background:sel?"#fff7ed":"#fff",cursor:notEnough?"not-allowed":"pointer",opacity:notEnough?0.5:1}}>
+                        <span style={{fontSize:16}}>{pm[1].split(" ")[0]}</span>
+                        <span style={{fontSize:13,fontWeight:sel?700:400,color:sel?"#c2410c":"#333"}}>{pm[1].split(" ").slice(1).join(" ")}</span>
+                        {pm[0]==="balance" && <span style={{marginLeft:"auto",fontSize:10,color:notEnough?"#ef4444":"#059669"}}>잔액 {bal.toLocaleString()}원</span>}
+                        {sel && pm[0]!=="balance" && <span style={{marginLeft:"auto",color:"#c2410c",fontWeight:700,fontSize:12}}>✓</span>}
+                      </div>;
+                    })}
+                  </div>
+                  <button onClick={checkout} disabled={!cartPM}
+                    style={{width:"100%",background:cartPM?"linear-gradient(135deg,#9a3412,#c2410c)":"#d1d5db",color:"#fff",border:"none",borderRadius:12,padding:"14px",fontSize:14,fontWeight:900,cursor:cartPM?"pointer":"not-allowed"}}>
+                    🧺 {cartList.length}건 일괄 결제 ({totalDep.toLocaleString()}원)
+                  </button>
+                </>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {showLogin && <LoginModal
         onLogin={function(user){setLoginUser(user);setShowLogin(false);setTab("mypage");}}
         onClose={function(){setShowLogin(false);}}
