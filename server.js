@@ -1,9 +1,8 @@
 const express = require("express");
-const fetch   = require("node-fetch");
-const cors    = require("cors");
-const path    = require("path");
-
-const app  = express();
+const fetch = require("node-fetch");
+const cors = require("cors");
+const path = require("path");
+const app = express();
 const PORT = process.env.PORT || 3000;
 
 const SHEET_ID_AUCTION = "1K41TJcxgJdttUCaDsiqTBB7aoJWtdQkJre5RC2vlUZc"; // 경락 데이터
@@ -26,7 +25,10 @@ async function fetchSheet(sheetId, gid) {
     redirect: "follow",
   });
   if (!r.ok) throw new Error("Sheets 응답 오류: " + r.status);
-  return await r.text();
+  // BOM 제거 후 반환
+  let text = await r.text();
+  text = text.replace(/^\uFEFF/, "");
+  return text;
 }
 
 // ── 실시간 경매정보 (경락가) ──
@@ -34,7 +36,10 @@ app.get("/api/sheet", async (req, res) => {
   try {
     console.log("[경락] 데이터 가져오는 중...");
     const csv = await fetchAuctionWithBackup();
-    console.log("[경락] 완료:", csv.trim().split("\n").length, "행");
+    const lines = csv.trim().split("\n");
+    console.log("[경락] 완료:", lines.length, "행");
+    console.log("[경락] 헤더:", lines[0].substring(0, 150));
+    console.log("[경락] 2행:", lines[1] ? lines[1].substring(0, 150) : "없음");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=300");
     res.send(csv);
@@ -52,7 +57,6 @@ app.get("/api/sheet/prev", async (req, res) => {
     res.setHeader("Cache-Control", "no-cache");
     res.send(auctionPrevCache.csv);
   } else {
-    // 백업 없으면 현재 데이터 반환 (서버 재시작 직후)
     res.status(404).json({ ok: false, error: "전일 데이터 없음" });
   }
 });
@@ -62,7 +66,9 @@ app.get("/api/trade", async (req, res) => {
   try {
     console.log("[거래실적] 데이터 가져오는 중...");
     const csv = await fetchSheet(SHEET_ID_TRADE, GID_TRADE);
-    console.log("[거래실적] 완료:", csv.trim().split("\n").length, "행");
+    const lines = csv.trim().split("\n");
+    console.log("[거래실적] 완료:", lines.length, "행");
+    console.log("[거래실적] 헤더:", lines[0].substring(0, 150));
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=300");
     res.send(csv);
@@ -98,16 +104,15 @@ app.post("/api/chat", async (req, res) => {
 });
 
 // ── 전일 경락 데이터 자동 백업 ──
-let auctionCache = { date: "", csv: "" };
+let auctionCache     = { date: "", csv: "" };
 let auctionPrevCache = { date: "", csv: "" };
 
 async function fetchAuctionWithBackup() {
   const csv = await fetchSheet(SHEET_ID_AUCTION, GID_AUCTION);
   const lines = csv.trim().split("\n");
-  // 첫 데이터 행에서 날짜 추출
-  const today = lines.length > 1 ? (lines[1].split(",")[0]||"").split(" ")[0].trim() : "";
+  // 첫 데이터 행에서 날짜 추출 (col[0] = 경매일시)
+  const today = lines.length > 1 ? (lines[1].split(",")[0] || "").split(" ")[0].trim() : "";
   if (today && auctionCache.date && today !== auctionCache.date) {
-    // 날짜 바뀌면 이전 데이터 백업
     auctionPrevCache = { ...auctionCache };
     console.log("[경락] 전일 백업:", auctionCache.date, "→ 오늘:", today);
   }
@@ -118,9 +123,8 @@ async function fetchAuctionWithBackup() {
 }
 
 // ── 구매예약 메모리 저장소 ──
-const purchases = {}; // key: "dealerNo_itemKey", value: {buyer, item, price, time, status}
+const purchases = {};
 
-// 구매예약 등록
 app.post("/api/purchase", (req, res) => {
   const { dealerNo, itemKey, buyer, itemName, grade, price, qty, unit, origin } = req.body;
   if (!dealerNo || !itemKey) return res.status(400).json({ ok: false, error: "필수값 누락" });
@@ -138,12 +142,10 @@ app.post("/api/purchase", (req, res) => {
   res.json({ ok: true, key });
 });
 
-// 구매상태 조회
 app.get("/api/purchases", (req, res) => {
   res.json({ ok: true, purchases });
 });
 
-// 구매 취소 (초기화용)
 app.delete("/api/purchase/:key", (req, res) => {
   delete purchases[req.params.key];
   res.json({ ok: true });
