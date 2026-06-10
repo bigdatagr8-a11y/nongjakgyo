@@ -1402,6 +1402,7 @@ function App() {
   var f8 = useState("today"); var dateFilter = f8[0]; var setDateFilter = f8[1];
 
   var d1 = useState([]); var data = d1[0]; var setData = d1[1];
+  var d1b = useState([]); var noeunCards = d1b[0]; var setNoeunCards = d1b[1];
   var d2 = useState("idle"); var status = d2[0]; var setStatus = d2[1];
   var d3 = useState(""); var errMsg = d3[0]; var setErrMsg = d3[1];
   var d4 = useState(null); var lastUpdated = d4[0]; var setLastUpdated = d4[1];
@@ -1610,8 +1611,8 @@ function App() {
           };
         }).filter(function(r){ return r.price > 0; });
 
-        // AT데이터(노은 제외)에 노은 카드 추가
-        setData(function(prev){ return prev.concat(noeunCards); });
+        // 노은 카드 별도 state로 저장
+        setNoeunCards(noeunCards);
         setLiveCount(noeunCards.length);
 
       } catch(e) {
@@ -1640,7 +1641,7 @@ function App() {
   }, []);
 
   // 오늘/전일 탭에 따라 데이터 소스 선택
-  var activeData = dateFilter === "yesterday" ? prevData : data;
+  var activeData = dateFilter === "yesterday" ? prevData : data.concat(noeunCards);
   var allDates = Array.from(new Set(data.map(function(r){return r.date;}).filter(Boolean))).sort();
   var latestDate = allDates[allDates.length-1] || TODAY;
   var prevAllDates = Array.from(new Set(prevData.map(function(r){return r.date;}).filter(Boolean))).sort();
