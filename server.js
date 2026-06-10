@@ -84,7 +84,8 @@ function parseAuctionCSV(csv) {
     const priceStr = (cols[IDX.경락가] || "").replace(/,/g, "").trim();
     const price    = parseInt(priceStr) || 0;
 
-    if (!itemName || !price) continue;
+    // 경락가 1000원 미만은 이상한 값으로 제외
+    if (!itemName || !price || price < 1000) continue;
 
     // 2행 첫 파싱 시 로그
     if (i === 1) {
