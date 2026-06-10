@@ -2818,10 +2818,10 @@ function App() {
         var allTradeDates = rows.map(function(r){ return normDate(r["경매일자"]||r["매매일자"]||""); }).filter(Boolean);
         var latestTradeDate = allTradeDates.sort().pop() || "";
 
-        // 최신 날짜 행만 필터
-        var todayRows = latestTradeDate
+        // 최신 날짜 행만 필터 — 오늘(TODAY)과 일치할 때만 오늘 탭에 표시
+        var todayRows = (latestTradeDate && latestTradeDate === TODAY)
           ? rows.filter(function(r){ return normDate(r["경매일자"]||r["매매일자"]||"") === latestTradeDate; })
-          : rows;
+          : [];
 
         var itemGroups = {};
         todayRows.forEach(function(row){
