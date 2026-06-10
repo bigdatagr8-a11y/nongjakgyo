@@ -792,152 +792,85 @@ function RecordCard(props) {
           </div>
         )}
 
-        {/* 노은시장 거래실적 연결 - 중도매인별 */}
+        {/* 노은시장 거래실적 연결 - 카드 형태 */}
         {r.market.id === 8 && matchedTrades.length > 0 && (
           <div style={{marginBottom:8}}>
             <button onClick={function(){setShowTrade(!showTrade);}} style={{background:"none",border:"none",padding:0,fontSize:11,color:"#2563eb",fontWeight:700,cursor:"pointer"}}>
               {showTrade ? "▲ 거래실적 접기" : "▼ 오늘 거래실적 보기 ("+matchedTrades.length+"건)"}
             </button>
-            {showTrade && (function(){
-              // 중도매인별 그룹화
-              var dealerGroups = {};
-              matchedTrades.forEach(function(t){
-                var no = String(t["낙찰 중도매인"]||"").trim();
-                if(!dealerGroups[no]) dealerGroups[no] = [];
-                dealerGroups[no].push(t);
-              });
-              return (
-                <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:10}}>
-                  {Object.keys(dealerGroups).map(function(no){
-                    var trades = dealerGroups[no];
-                    var info = getDealerInfo(no);
-                    var avgPrice = Math.round(trades.reduce(function(s,t){
-                      return s+(parseInt((t["단가"]||"").replace(/,/g,""))||0);
-                    },0)/trades.length);
-                    var totalQty = trades.reduce(function(s,t){
-                      return s+(parseInt((t["수량"]||"").replace(/,/g,""))||0);
-                    },0);
-                    var totalWeight = trades.reduce(function(s,t){
-                      var w = parseFloat(t["중량"]||0);
-                      var q = parseInt((t["수량"]||"0").replace(/,/g,""))||0;
-                      return s + w*q;
-                    },0);
-                    return (
-                      <div key={no} style={{border:"1px solid #bfdbfe",borderRadius:12,overflow:"hidden"}}>
-                        {/* 중도매인 헤더 */}
-                        <div style={{background:"#1e3a8a",padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <div>
-                            <span style={{color:"#fff",fontWeight:700,fontSize:12}}>{info.name}</span>
-                            <span style={{color:"#93c5fd",fontSize:10,marginLeft:6}}>#{no}</span>
-                            {info.phone && <a href={"tel:"+info.phone} style={{color:"#86efac",fontSize:10,marginLeft:8,textDecoration:"none"}}>📞 {info.phone}</a>}
+            {showTrade && (
+              <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:8}}>
+                {matchedTrades.map(function(t, i){
+                  var auctionTime = (t["경매시간"]||"").trim();
+                  var origin      = (t["산지명"]||"").trim();
+                  var grade       = (t["등급"]||"").trim();
+                  var size        = (t["크기"]||"").trim();
+                  var weight      = (t["중량"]||"").trim();
+                  var qty         = (t["수량"]||"").trim();
+                  var price       = parseInt((t["단가"]||"").replace(/,/g,""))||0;
+                  var amount      = parseInt((t["금액"]||"").replace(/,/g,""))||0;
+                  var no          = String(t["낙찰 중도매인"]||"").trim();
+                  var info        = getDealerInfo(no);
+                  var kgPerBox    = parseFloat(weight)||0;
+                  var kgPrice     = (kgPerBox>0&&price>0) ? Math.round(price/kgPerBox) : null;
+                  var itemKey     = no+"_"+(auctionTime||i);
+                  var pKey        = no+"_"+itemKey;
+                  var isSold      = purchases[pKey] && purchases[pKey].status==="완료";
+                  var gradeColor  = {
+                    "특":{bg:"#fef9c3",color:"#854d0e"},"상":{bg:"#dbeafe",color:"#1e40af"},
+                    "보통":{bg:"#f3f4f6",color:"#555"},"1":{bg:"#fef9c3",color:"#854d0e"},
+                    "2":{bg:"#dbeafe",color:"#1e40af"},"3":{bg:"#f3f4f6",color:"#555"},
+                    "4":{bg:"#fce7f3",color:"#9d174d"},
+                    "대":{bg:"#fef9c3",color:"#854d0e"},"중":{bg:"#dbeafe",color:"#1e40af"},"소":{bg:"#f3f4f6",color:"#555"},
+                  }[grade]||{bg:"#f3f4f6",color:"#555"};
+
+                  return (
+                    <div key={i} style={{background:"#f8faff",borderRadius:12,border:"1px solid #bfdbfe",padding:"11px 13px"}}>
+                      {/* 상단: 중도매인 + 시간 */}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <div style={{background:"#1e3a8a",borderRadius:8,padding:"3px 8px"}}>
+                            <span style={{color:"#fff",fontWeight:700,fontSize:11}}>{info.name}</span>
+                            <span style={{color:"#93c5fd",fontSize:10,marginLeft:4}}>#{no}</span>
                           </div>
-                          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-                            <span style={{color:"#bfdbfe",fontSize:10}}>{trades.length}건 · 평균 {avgPrice.toLocaleString()}원 · {totalQty}개 / {totalWeight>0?totalWeight.toLocaleString()+"kg":"-"}</span>
-                            <button onClick={function(){setShowChat(true); window._chatDealer={no:no,tradeRow:trades[0]};}} style={{background:"#2563eb",color:"#fff",border:"none",borderRadius:20,padding:"4px 10px",fontSize:10,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
-                          </div>
+                          {info.phone && <a href={"tel:"+info.phone} style={{color:G.light,fontSize:10,textDecoration:"none"}}>📞 {info.phone}</a>}
                         </div>
-                        {/* 거래 내역 */}
-                        <div style={{overflowX:"auto"}}>
-                          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:480}}>
-                            <thead>
-                              <tr style={{background:"#1e3a8a"}}>
-                                {[
-                                  {label:"경매시간", sub:null},
-                                  {label:"산지명",   sub:null},
-                                  {label:"등급",     sub:null},
-                                  {label:"크기",     sub:null},
-                                  {label:"중량",     sub:"(박스)"},
-                                  {label:"수량",     sub:"(개)"},
-                                  {label:"단가",     sub:"(박스)"},
-                                  {label:"kg당",     sub:"단가"},
-                                  {label:"문의",     sub:null},
-                                ].map(function(h){return(
-                                  <th key={h.label} style={{padding:"7px 8px",color:"#bfdbfe",fontWeight:700,textAlign:"left",whiteSpace:"nowrap",fontSize:10}}>
-                                    {h.label}
-                                    {h.sub && <div style={{color:"#93c5fd",fontWeight:400,fontSize:9,marginTop:1}}>{h.sub}</div>}
-                                  </th>
-                                );})}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {trades.map(function(t,i){
-                                // tradeData는 한글 헤더 키로 저장됨
-                                var auctionTime = (t["경매시간"]||"").trim();
-                                var origin      = (t["산지명"]||"").trim();
-                                var grade       = (t["등급"]||"").trim();
-                                var size        = (t["크기"]||"").trim();
-                                var weight      = (t["중량"]||"").trim();   // 박스당 kg
-                                var qty         = (t["수량"]||"").trim();
-                                var price       = parseInt((t["단가"]||"").replace(/,/g,""))||0;
-                                var amount      = parseInt((t["금액"]||"").replace(/,/g,""))||0;
-                                var kgPerBox    = parseFloat(weight)||0;
-                                var kgPrice     = (kgPerBox > 0 && price > 0) ? Math.round(price / kgPerBox) : null;
-                                var gradeColor  = {
-                                  "특": {bg:"#fef9c3",color:"#854d0e"},
-                                  "상": {bg:"#dbeafe",color:"#1e40af"},
-                                  "보통":{bg:"#f3f4f6",color:"#555"},
-                                  "1":  {bg:"#fef9c3",color:"#854d0e"},
-                                  "2":  {bg:"#dbeafe",color:"#1e40af"},
-                                  "3":  {bg:"#f3f4f6",color:"#555"},
-                                  "4":  {bg:"#fce7f3",color:"#9d174d"},
-                                  "대": {bg:"#fef9c3",color:"#854d0e"},
-                                  "중": {bg:"#dbeafe",color:"#1e40af"},
-                                  "소": {bg:"#f3f4f6",color:"#555"},
-                                }[grade] || {bg:"#f3f4f6",color:"#555"};
-                                return (
-                                <tr key={i} style={{background:i%2===0?"#fff":"#f8faff",borderBottom:"1px solid #e8edf8"}}
-                                  onMouseEnter={function(e){e.currentTarget.style.background="#eff6ff";}}
-                                  onMouseLeave={function(e){e.currentTarget.style.background=i%2===0?"#fff":"#f8faff";}}>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#64748b",fontSize:10,fontVariantNumeric:"tabular-nums"}}>{auctionTime||"-"}</td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:500}}>{origin||"-"}</td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
-                                    {grade
-                                      ? <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:6,padding:"2px 7px",fontWeight:700,fontSize:10}}>{grade}</span>
-                                      : <span style={{color:"#ccc"}}>-</span>}
-                                  </td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#475569",fontSize:10}}>{(size && size !== "0") ? size : "-"}</td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b",fontWeight:600}}>{weight ? weight+"kg" : "-"}</td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap",color:"#1e293b"}}>{qty ? qty+"개" : "-"}</td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
-                                    <span style={{color:G.mid,fontWeight:700}}>{price ? price.toLocaleString()+"원" : "-"}</span>
-                                  </td>
-                                  <td style={{padding:"7px 8px",whiteSpace:"nowrap"}}>
-                                    {kgPrice
-                                      ? <span style={{background:"#ecfdf5",color:"#065f46",borderRadius:6,padding:"2px 7px",fontWeight:700,fontSize:10}}>{kgPrice.toLocaleString()}원</span>
-                                      : <span style={{color:"#ccc"}}>-</span>}
-                                  </td>
-                                  <td style={{padding:"6px 7px",whiteSpace:"nowrap"}}>
-                                    {(function(){
-                                      var itemKey = no+"_"+(auctionTime||i);
-                                      var pKey = no+"_"+itemKey;
-                                      var isSold = purchases[pKey] && purchases[pKey].status === "완료";
-                                      if(isSold) return (
-                                        <span style={{background:"#fee2e2",color:"#991b1b",borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:700}}>판매완료</span>
-                                      );
-                                      return (
-                                        <div style={{display:"flex",gap:3}}>
-                                          <button onClick={function(){
-                                            setPayModal({no:no, tradeRow:t, itemKey:itemKey});
-                                          }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🛒 예약</button>
-                                          <button onClick={function(){
-                                            window._chatDealer={no:no, tradeRow:t, chatType:"inquiry"};
-                                            setShowChat(true);
-                                          }} style={{background:"#f0fdf4",color:"#166534",border:"1px solid #bbf7d0",borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>❓</button>
-                                        </div>
-                                      );
-                                    })()}
-                                  </td>
-                                </tr>
-                              );})}
-                            </tbody>
-                          </table>
+                        <span style={{color:"#94a3b8",fontSize:10}}>{auctionTime}</span>
+                      </div>
+
+                      {/* 중단: 산지 + 등급 + 크기 */}
+                      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+                        {origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📍 {origin}</span>}
+                        {grade && <span style={{background:gradeColor.bg,color:gradeColor.color,borderRadius:20,padding:"2px 9px",fontWeight:700,fontSize:10}}>{grade}등급</span>}
+                        {size && size!=="0" && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"2px 9px"}}>{size}</span>}
+                        {weight && <span style={{background:"#f0fdf4",color:G.mid,fontSize:10,fontWeight:600,borderRadius:20,padding:"2px 9px"}}>📦 {weight}kg/박스</span>}
+                        {qty && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"2px 9px"}}>{qty}개</span>}
+                      </div>
+
+                      {/* 하단: 가격 + 버튼 */}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div>
+                          <span style={{fontWeight:900,fontSize:16,color:G.mid}}>{price ? price.toLocaleString()+"원" : "-"}</span>
+                          <span style={{fontSize:10,color:"#aaa",marginLeft:4}}>/ {weight}kg 단위</span>
+                          {kgPrice && <div style={{fontSize:11,color:"#059669",fontWeight:600,marginTop:2}}>kg당 {kgPrice.toLocaleString()}원</div>}
+                        </div>
+                        <div style={{display:"flex",gap:5}}>
+                          {isSold
+                            ? <span style={{background:"#fee2e2",color:"#991b1b",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700}}>판매완료</span>
+                            : <>
+                                <button onClick={function(){ setPayModal({no:no,tradeRow:t,itemKey:itemKey}); }}
+                                  style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
+                                <button onClick={function(){ window._chatDealer={no:no,tradeRow:t,chatType:"inquiry"}; setShowChat(true); }}
+                                  style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
+                              </>
+                          }
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
