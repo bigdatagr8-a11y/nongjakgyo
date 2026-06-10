@@ -785,6 +785,23 @@ function RecordCard(props) {
                   var amount      = parseInt((t["금액"]||"").replace(/,/g,""))||0;
                   var no          = String(t["낙찰 중도매인"]||"").trim();
                   var info        = getDealerInfo(no);
+                  // 중도매인 비공개 설정 확인
+                  var noKey = (function(){
+                    var m = no.match(/^(\d+)/);
+                    return m ? String(parseInt(m[1])) : no;
+                  })();
+                  var dealerPrivate = (function(){
+                    try {
+                      // DEALER_INFO에서 해당 번호의 dealer 계정 찾기
+                      for(var acc in ACCOUNTS) {
+                        if(ACCOUNTS[acc].role==="dealer" && String(ACCOUNTS[acc].dealerNo)===noKey) {
+                          var ds = JSON.parse(localStorage.getItem("agro_dealer_"+acc)||"{}");
+                          return ds.phonePublic === false; // 명시적으로 비공개 설정한 경우만
+                        }
+                      }
+                    } catch(e){}
+                    return false;
+                  })();
                   var kgPerBox    = parseFloat(weight)||0;
                   var kgPrice     = (kgPerBox>0&&price>0) ? Math.round(price/kgPerBox) : null;
                   var itemKey     = no+"_"+(auctionTime||i);
@@ -802,11 +819,14 @@ function RecordCard(props) {
                     <div key={i} style={{background:"#f8faff",borderRadius:12,border:"1px solid #bfdbfe",padding:"11px 13px"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <div style={{background:"#1e3a8a",borderRadius:8,padding:"3px 8px"}}>
-                            <span style={{color:"#fff",fontWeight:700,fontSize:11}}>{info.name}</span>
-                            <span style={{color:"#93c5fd",fontSize:10,marginLeft:4}}>#{no}</span>
+                          <div style={{background:dealerPrivate?"#64748b":"#1e3a8a",borderRadius:8,padding:"3px 8px"}}>
+                            <span style={{color:"#fff",fontWeight:700,fontSize:11}}>
+                              {dealerPrivate ? "익명 중도매인" : info.name}
+                            </span>
+                            {!dealerPrivate && <span style={{color:"#93c5fd",fontSize:10,marginLeft:4}}>#{noKey}</span>}
                           </div>
-                          {info.phone && <a href={"tel:"+info.phone} style={{color:G.light,fontSize:10,textDecoration:"none"}}>📞 {info.phone}</a>}
+                          {!dealerPrivate && info.phone && <a href={"tel:"+info.phone} style={{color:G.light,fontSize:10,textDecoration:"none"}}>📞 {info.phone}</a>}
+                          {dealerPrivate && <span style={{fontSize:10,color:"#94a3b8",background:"#f1f5f9",borderRadius:6,padding:"2px 7px"}}>🔒 연락처 비공개</span>}
                         </div>
                         <span style={{color:"#94a3b8",fontSize:10}}>{auctionTime}</span>
                       </div>
@@ -839,8 +859,8 @@ function RecordCard(props) {
                                   setBuyQty(1);
                                   setPayModal({no:no,tradeRow:t,itemKey:itemKey,maxQty:parseInt(qty)||1});
                                 }} style={{background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🛒 예약</button>
-                                <button onClick={function(){ window._chatDealer={no:no,tradeRow:t,chatType:"inquiry"}; setShowChat(true); }}
-                                  style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 채팅</button>
+                                <button onClick={function(){ window._chatDealer={no:dealerPrivate?"익명":no, tradeRow:t, chatType:"inquiry", anonymous:dealerPrivate}; setShowChat(true); }}
+                                  style={{background:"#fff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>💬 {dealerPrivate?"익명 채팅":"채팅"}</button>
                               </>
                           }
                         </div>
