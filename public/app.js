@@ -2159,7 +2159,6 @@ function App() {
               );})}
             </div>
 
-            </div>
             {sortBy==="smart" && (function(){
               var userSido = (function(){ try { var s=JSON.parse(localStorage.getItem("agro_buyer_"+(loginUser&&loginUser.id||"guest"))||"{}"); return s.bizSido||""; } catch(e){ return ""; } })();
               return (
