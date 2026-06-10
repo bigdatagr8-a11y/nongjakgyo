@@ -2568,7 +2568,7 @@ function App() {
         var res = await fetch("/api/purchases");
         if(!res.ok) return;
         var json = await res.json();
-        if(!cancelled) setPurchases(json.purchases || {});
+        if(!cancelled) { var soldCards={}; try{soldCards=JSON.parse(localStorage.getItem("agro_sold_cards")||"{}");}catch(e){} setPurchases(Object.assign({}, json.purchases||{}, soldCards)); }
       } catch(e) {}
     }
     loadPurchases();
