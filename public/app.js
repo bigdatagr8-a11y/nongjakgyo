@@ -648,6 +648,18 @@ function RecordCard(props) {
       var cart = JSON.parse(localStorage.getItem("agro_cart_"+uid)||"[]");
       var isAT = cartModal && cartModal.isAT;
       var info = isAT ? {name: cartModal.corpName||"법인", phone:""} : getDealerInfo(no);
+      var isAnon = !isAT && (function(){
+        var noKey = (function(){ var m = String(no||"").match(/^(\d+)/); return m?String(parseInt(m[1])):String(no||""); })();
+        try {
+          for(var acc in ACCOUNTS) {
+            if(ACCOUNTS[acc].role==="dealer" && String(ACCOUNTS[acc].dealerNo)===noKey) {
+              var ds = JSON.parse(localStorage.getItem("agro_dealer_"+acc)||"{}");
+              return ds.phonePublic === false;
+            }
+          }
+        } catch(e){}
+        return false;
+      })();
       var price = parseInt((t["단가"]||"0").replace(/,/g,""))||0;
       var qty = selectedQty || 1;
       var weight = (t["중량"]||"").trim();
@@ -657,7 +669,7 @@ function RecordCard(props) {
       cart.push({
         itemKey: itemKey, no: no,
         cardId: cartModal && cartModal.cardId,
-        dealerName: info.name, dealerPhone: info.phone||"",
+        dealerName: isAnon ? "익명 중도매인" : info.name, dealerPhone: isAnon ? "" : (info.phone||""),
         itemName: (t["품목명"]||"").trim(),
         grade: (t["등급"]||"").trim(),
         origin: (t["산지명"]||"").trim(),
@@ -868,13 +880,25 @@ function RecordCard(props) {
           var cTotal = cPrice * cSafeQty;
           var cDeposit = Math.round(cTotal * 0.1);
           var cInfo = getDealerInfo(cartModal.no);
+          var cDealerPrivate = (function(){
+            var noKey = (function(){ var m = String(cartModal.no||"").match(/^(\d+)/); return m?String(parseInt(m[1])):String(cartModal.no||""); })();
+            try {
+              for(var acc in ACCOUNTS) {
+                if(ACCOUNTS[acc].role==="dealer" && String(ACCOUNTS[acc].dealerNo)===noKey) {
+                  var ds = JSON.parse(localStorage.getItem("agro_dealer_"+acc)||"{}");
+                  return ds.phonePublic === false;
+                }
+              }
+            } catch(e){}
+            return false;
+          })();
           return (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={function(e){if(e.target===e.currentTarget)setCartModal(null);}}>
               <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:380,overflow:"hidden"}}>
                 <div style={{background:"linear-gradient(135deg,#9a3412,#c2410c)",padding:"14px 16px"}}>
                   <div style={{color:"#fed7aa",fontSize:10,fontWeight:700,letterSpacing:2}}>🧺 장바구니 담기</div>
                   <div style={{color:"#fff",fontWeight:800,fontSize:15,marginTop:4}}>{(ct["품목명"]||"").trim()} {(ct["등급"]||"")&&"· "+(ct["등급"]||"").trim()+"등급"}</div>
-                  <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>중도매인 {cInfo.name} · 대전 노은시장</div>
+                  <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>중도매인 {cDealerPrivate?"익명":cInfo.name} · 대전 노은시장</div>
                 </div>
                 <div style={{padding:"16px"}}>
                   <div style={{background:"#f9fafb",borderRadius:12,padding:"14px",marginBottom:14}}>
@@ -922,6 +946,19 @@ function RecordCard(props) {
           var dealerInfo = isAT
             ? {name: r.corp || "법인", phone: r.market.phone || ""}
             : getDealerInfo(payModal.no);
+          // 익명 설정 확인
+          var payDealerPrivate = !isAT && (function(){
+            var noKey = (function(){ var m = String(payModal.no||"").match(/^(\d+)/); return m?String(parseInt(m[1])):String(payModal.no||""); })();
+            try {
+              for(var acc in ACCOUNTS) {
+                if(ACCOUNTS[acc].role==="dealer" && String(ACCOUNTS[acc].dealerNo)===noKey) {
+                  var ds = JSON.parse(localStorage.getItem("agro_dealer_"+acc)||"{}");
+                  return ds.phonePublic === false;
+                }
+              }
+            } catch(e){}
+            return false;
+          })();
           var safeQty = Math.max(1, Math.min(buyQty, maxQty));
           var total = price * safeQty;
           var deposit = Math.round(total * 0.1);
@@ -931,7 +968,7 @@ function RecordCard(props) {
                 <div style={{background:"linear-gradient(135deg,#0d2b1a,#1b4332)",padding:"16px"}}>
                   <div style={{color:"#4ade80",fontSize:10,fontWeight:700,letterSpacing:2}}>🛒 구매예약 · 보증금 결제</div>
                   <div style={{color:"#fff",fontWeight:800,fontSize:16,marginTop:4}}>{itemName} {grade&&"· "+grade+"등급"}</div>
-                  <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>{isAT ? r.market.name+" · "+r.corp : "중도매인 "+dealerInfo.name+" · 대전 노은시장"}</div>
+                  <div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>{isAT ? r.market.name+" · "+r.corp : "중도매인 "+(payDealerPrivate?"익명":dealerInfo.name)+" · 대전 노은시장"}</div>
                 </div>
                 <div style={{padding:"16px"}}>
                   <div style={{background:"#f8fffe",borderRadius:12,padding:"14px",marginBottom:12}}>
@@ -1322,7 +1359,7 @@ function RecordCard(props) {
                           </div>
 
                         </div>
-                        {dealerInfo.phone && <a href={"tel:"+dealerInfo.phone} style={{display:"block",marginTop:12,background:G.mid,color:"#fff",borderRadius:12,padding:"12px",textAlign:"center",fontWeight:700,fontSize:13,textDecoration:"none"}}>📞 {dealerInfo.name} 연락하기</a>}
+                        {!payDealerPrivate && dealerInfo.phone && <a href={"tel:"+dealerInfo.phone} style={{display:"block",marginTop:12,background:G.mid,color:"#fff",borderRadius:12,padding:"12px",textAlign:"center",fontWeight:700,fontSize:13,textDecoration:"none"}}>📞 {dealerInfo.name} 연락하기</a>}
                         <button onClick={function(){setPayModal(null);setPayDone(false);}} style={{width:"100%",marginTop:8,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>닫기</button>
                       </div>
                     : <div style={{display:"flex",gap:8,flexDirection:"column"}}>
