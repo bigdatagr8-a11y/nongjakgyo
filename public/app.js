@@ -498,7 +498,7 @@ function ChatModal(props) {
   var inp = useState(""); var input = inp[0]; var setInput = inp[1];
   var bottomRef = useRef(null);
 
-  var dealerNo = String((tradeRow && tradeRow["낙찰 중도매인"]) || record.bidder || "").trim();
+  var dealerNo = String((tradeRow && tradeRow["낙찰 중도매인"]) || (window._chatDealer && window._chatDealer.no) || record.dealerNo || record.bidder || "").trim();
   var dealerLookup = getDealerInfo(dealerNo);
   var bidderName = isAT ? (window._chatDealer&&window._chatDealer.corpName)||record.corp||"법인"
                  : isAnonymous ? "익명 중도매인" : dealerLookup.name;
