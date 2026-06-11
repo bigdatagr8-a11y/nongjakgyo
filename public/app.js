@@ -732,7 +732,7 @@ function RecordCard(props) {
           })()}
           {r.origin && <span style={{background:"#fffbeb",color:"#92400e",fontSize:10,fontWeight:600,borderRadius:20,padding:"3px 10px"}}>📍 {r.origin}</span>}
           {r.corp && <span style={{background:"#f3f4f6",color:"#555",fontSize:10,borderRadius:20,padding:"3px 10px"}}>🏢 {r.corp}</span>}
-          {r.grade && <span style={{background: r.grade==="특"?"#fef9c3": r.grade==="상"?"#dbeafe":"#f3f4f6", color: r.grade==="특"?"#854d0e": r.grade==="상"?"#1e40af":"#555", fontSize:10,fontWeight:700,borderRadius:20,padding:"3px 10px"}}>🏅 {r.grade}등급</span>}
+          {r.grade && ["왕특","특","특등","상","상등","보통"].indexOf(r.grade)!==-1 && <span style={{background: r.grade==="특"||r.grade==="왕특"||r.grade==="특등"?"#fef9c3": r.grade==="상"||r.grade==="상등"?"#dbeafe":"#f3f4f6", color: r.grade==="특"||r.grade==="왕특"||r.grade==="특등"?"#854d0e": r.grade==="상"||r.grade==="상등"?"#1e40af":"#555", fontSize:10,fontWeight:700,borderRadius:20,padding:"3px 10px"}}>🏅 {r.grade}등급</span>}
         </div>
         {(r.bidder || r.shipperName) && (
           <div style={{background:"#f8fffe",borderRadius:10,padding:"9px 12px",marginBottom:8,border:"1px solid #e0f7ec"}}>
