@@ -336,6 +336,13 @@ function parseCSV(csvText) {
     if(!itemName || !price) continue;
 
     var market   = getMarket(mktName);
+    // 품목명이 "기타과실/기타채소" 등 모호한 경우 품종에서 실제 품목명 추출
+    // 예: itemName="기타과실", variety="망고(수입)" → itemName="망고"
+    var VAGUE_ITEMS = ["기타과실","기타채소","기타","기타농산물","기타과채","기타화훼"];
+    if(VAGUE_ITEMS.indexOf(itemName) !== -1 && variety) {
+      var extracted = variety.replace(/\(.*?\)/g,"").trim();
+      if(extracted) itemName = extracted;
+    }
     var fullName = variety && variety !== itemName ? itemName+"("+variety+")" : itemName;
 
     records.push({
