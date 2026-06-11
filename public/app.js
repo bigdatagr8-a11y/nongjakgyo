@@ -707,7 +707,7 @@ function RecordCard(props) {
                 <div style={{fontWeight:800,fontSize:15,color:"#0d1f15"}}>{r.itemName}</div>
                 {!r.isMock && <span style={{background:"#ecfdf5",color:"#059669",fontSize:9,fontWeight:700,borderRadius:10,padding:"2px 6px",border:"1px solid #6ee7b7"}}>🔴 LIVE</span>}
               </div>
-              {r.variety && (
+              {r.variety && !(r.market.id===8 && ["왕특","특","특등","상","상등","보통"].indexOf(r.variety.replace(/등급$/,"").trim())===-1) && (
                 <div style={{fontSize:11,color:"#888",marginTop:1}}>{r.variety}</div>
               )}
               <div style={{fontSize:11,color:"#888",marginTop:1}}>
