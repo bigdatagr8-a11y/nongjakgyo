@@ -799,7 +799,7 @@ function RecordCard(props) {
                 <span style={{color:"#94a3b8",fontSize:10}}>{r.auctionTime}</span>
               </div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontSize:11,color:"#888"}}>낙찰번호 {noKey}</div>
+                <div style={{fontSize:11,color:"#888"}}>{dealerPrivate ? "익명 처리됨" : "낙찰번호 "+noKey}</div>
                 <div style={{display:"flex",gap:5}}>
                   {isSold
                     ? <span style={{background:"#fee2e2",color:"#991b1b",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700}}>판매완료</span>
