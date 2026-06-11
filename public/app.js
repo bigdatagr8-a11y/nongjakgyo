@@ -962,7 +962,7 @@ function RecordCard(props) {
                     </div>
                     <div style={{fontSize:11,color:"#065f46",lineHeight:1.6}}>
                       총 거래금액의 <b>10%</b>를 보증금으로 선납합니다.<br/>
-                      나머지 <b>{(total-deposit).toLocaleString()}원</b>은 수령 시 중도매인에게 직접 결제합니다.
+                      나머지 잔금은 수령 시 중도매인에게 직접 결제합니다.
                     </div>
                   </div>
                   {!payDone && <div style={{background:"#f9fafb",borderRadius:12,padding:"12px",marginBottom:12}}>
@@ -1313,10 +1313,7 @@ function RecordCard(props) {
                             <span style={{fontSize:12,color:"#888"}}>총 거래금액</span>
                             <span style={{fontSize:12,color:"#555"}}>{total.toLocaleString()}원</span>
                           </div>
-                          <div style={{display:"flex",justifyContent:"space-between",paddingTop:6,borderTop:"1px solid #d1fae5"}}>
-                            <span style={{fontSize:12,color:"#888"}}>수령 시 잔금</span>
-                            <span style={{fontSize:13,fontWeight:700,color:"#1e40af"}}>{(total-deposit).toLocaleString()}원</span>
-                          </div>
+
                         </div>
                         {dealerInfo.phone && <a href={"tel:"+dealerInfo.phone} style={{display:"block",marginTop:12,background:G.mid,color:"#fff",borderRadius:12,padding:"12px",textAlign:"center",fontWeight:700,fontSize:13,textDecoration:"none"}}>📞 {dealerInfo.name} 연락하기</a>}
                         <button onClick={function(){setPayModal(null);setPayDone(false);}} style={{width:"100%",marginTop:8,background:"#f3f4f6",color:"#888",border:"none",borderRadius:12,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>닫기</button>
@@ -1719,10 +1716,7 @@ function BuyerMyPage(props) {
                   <span style={{fontSize:12,color:"#888"}}>총 보증금</span>
                   <span style={{fontSize:14,fontWeight:900,color:"#c2410c"}}>{totalDeposit.toLocaleString()}원</span>
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between"}}>
-                  <span style={{fontSize:11,color:"#aaa"}}>수령 시 잔금</span>
-                  <span style={{fontSize:12,color:"#888"}}>{(totalAmount-totalDeposit).toLocaleString()}원</span>
-                </div>
+
               </div>
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>결제 수단</div>
@@ -1751,7 +1745,6 @@ function BuyerMyPage(props) {
       {(function(){
         var purchases = purchaseList;
         var totalUsed   = purchases.reduce(function(s,p){return s+(p.deposit||0);},0);
-        var totalRemain = purchases.reduce(function(s,p){return s+Math.max(0,(p.total||0)-(p.deposit||0));},0);
         var payMethodLabel = {"card":"💳 카드","kakao":"🟡 카카오페이","transfer":"🏦 계좌이체"};
         var QUICK_AMOUNTS = [10000,30000,50000,100000,300000];
         return (
@@ -1767,7 +1760,6 @@ function BuyerMyPage(props) {
               <div style={{display:"flex",justifyContent:"space-between",marginTop:12,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.15)"}}>
                 <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>총 사용금액</div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{totalUsed.toLocaleString()}원</div></div>
                 <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>예약건수</div><div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{purchases.length}건</div></div>
-                <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>수령 시 잔금</div><div style={{fontSize:13,fontWeight:700,color:"#fbbf24"}}>{totalRemain.toLocaleString()}원</div></div>
               </div>
             </div>
             {purchases.length > 0 ? (
@@ -1825,7 +1817,7 @@ function BuyerMyPage(props) {
               <div style={{textAlign:"center",padding:"16px 0",color:"#aaa",fontSize:12}}>아직 예약 내역이 없습니다</div>
             )}
             <div style={{fontSize:11,color:"#888",lineHeight:1.7,marginTop:8,padding:"10px 12px",background:"#f8fffe",borderRadius:8}}>
-              💡 예치금으로 보증금 결제 시 즉시 차감됩니다. 수령 시 잔금은 중도매인에게 직접 결제하세요.
+              💡 예치금으로 보증금(총액의 10%) 결제 시 즉시 차감됩니다. 잔금은 수령 시 중도매인에게 직접 결제하세요.
             </div>
             {showCharge && (
               <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={function(e){if(e.target===e.currentTarget){setShowCharge(false);setChargeDone(false);}}}>
@@ -3257,10 +3249,7 @@ function App() {
                       <span style={{fontSize:13,color:"#555"}}>총 보증금</span>
                       <span style={{fontSize:16,fontWeight:900,color:"#c2410c"}}>{totalDep.toLocaleString()}원</span>
                     </div>
-                    <div style={{display:"flex",justifyContent:"space-between"}}>
-                      <span style={{fontSize:11,color:"#aaa"}}>수령 시 잔금</span>
-                      <span style={{fontSize:12,color:"#888"}}>{(totalAmt-totalDep).toLocaleString()}원</span>
-                    </div>
+
                   </div>
                   <div style={{marginBottom:12}}>
                     {/* 수령방법 */}
